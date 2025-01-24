@@ -26,6 +26,7 @@ class SweepConfig:
     beta_range: List[float]
     llc_estimator: Callable
     llc_estimator_kwargs: dict
+
     def __init__(self, epsilon_range, beta_range, llc_estimator, llc_estimator_kwargs):
         self.epsilon_range = epsilon_range
         self.beta_range = beta_range
