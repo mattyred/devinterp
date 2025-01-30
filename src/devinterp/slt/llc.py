@@ -112,7 +112,15 @@ class LLCEstimator(SamplerCallback):
         """
         :returns: A dict :python:`{"llc/mean": llc_mean, "llc/std": llc_std, "llc-chain/{i}": llc_trace_per_chain, "loss/trace": loss_trace_per_chain}`. (Only after running :python:`devinterp.slt.sampler.sample(..., [llc_estimator_instance], ...)`).
         """
+
+        init_loss = (
+            self.init_loss.item()
+            if isinstance(self.init_loss, torch.Tensor)
+            else self.init_loss
+        )
+
         return {
+            "init_loss": init_loss,
             "llc/mean": self.llc_mean.cpu().numpy().item(),
             "llc/std": self.llc_std.cpu().numpy().item(),
             **{
