@@ -69,7 +69,7 @@ def _test_hf(model, dataset, device: str, batch_size=4, seed=42):
         callbacks=[llc_estimator],
         evaluate=evaluate,
         sampling_method=SGLD,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=0.0002,
             weight_decay=0.0,
             localization=0.0,

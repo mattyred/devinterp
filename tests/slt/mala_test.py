@@ -124,7 +124,7 @@ def test_mala_callback_closeness(
             model,
             train_dataloader,
             evaluate=evaluate,
-            optimizer_kwargs=dict(
+            sampling_method_kwargs=dict(
                 lr=lr,
                 localization=localization,
                 nbeta=default_nbeta(train_dataloader),

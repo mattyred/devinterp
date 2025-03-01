@@ -63,7 +63,7 @@ def test_accuracy_normalcrossing(
         model,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=lr,
             nbeta=default_nbeta(len(train_data)),
         ),

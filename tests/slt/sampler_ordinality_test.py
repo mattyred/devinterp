@@ -67,7 +67,7 @@ def test_linedot_normal_crossing(
             model,
             train_dataloader,
             evaluate=evaluate_mse,
-            optimizer_kwargs=dict(
+            sampling_method_kwargs=dict(
                 lr=lr,
                 bounding_box_size=0.5,
                 nbeta=default_nbeta(train_dataloader),

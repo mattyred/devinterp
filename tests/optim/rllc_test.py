@@ -102,7 +102,7 @@ def test_rllc_normalcrossing_between_powers(
         model1,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=lr,
             nbeta=default_nbeta(train_dataloader),
         ),
@@ -120,7 +120,7 @@ def test_rllc_normalcrossing_between_powers(
         model2,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=lr,
             nbeta=default_nbeta(train_dataloader),
         ),
@@ -193,7 +193,7 @@ def test_restricted_gradient_normalcrossing_between_dims(
         model1,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=lr, nbeta=default_nbeta(train_dataloader), noise_level=0.0
         ),
         sampling_method=sampling_method,
@@ -207,7 +207,7 @@ def test_restricted_gradient_normalcrossing_between_dims(
         model2,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=lr, nbeta=default_nbeta(train_dataloader), noise_level=0.0
         ),
         sampling_method=sampling_method,
@@ -275,7 +275,7 @@ def test_rllc_full_normalcrossing_between_dims(
         model1,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(lr=lr, nbeta=default_nbeta(train_dataloader)),
+        sampling_method_kwargs=dict(lr=lr, nbeta=default_nbeta(train_dataloader)),
         sampling_method=sampling_method,
         num_chains=num_chains,
         num_draws=num_draws,
@@ -288,7 +288,7 @@ def test_rllc_full_normalcrossing_between_dims(
         model2,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(lr=lr, nbeta=default_nbeta(train_dataloader)),
+        sampling_method_kwargs=dict(lr=lr, nbeta=default_nbeta(train_dataloader)),
         sampling_method=sampling_method,
         num_chains=num_chains,
         num_draws=num_draws,
@@ -346,7 +346,7 @@ def test_rllc_different_from_full_llc_between_dims(
         model,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(lr=lr, nbeta=default_nbeta(train_dataloader)),
+        sampling_method_kwargs=dict(lr=lr, nbeta=default_nbeta(train_dataloader)),
         sampling_method=sampling_method,
         num_chains=num_chains,
         num_draws=num_draws,
@@ -358,7 +358,7 @@ def test_rllc_different_from_full_llc_between_dims(
         model,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(lr=lr, nbeta=default_nbeta(train_dataloader)),
+        sampling_method_kwargs=dict(lr=lr, nbeta=default_nbeta(train_dataloader)),
         sampling_method=sampling_method,
         num_chains=num_chains,
         num_draws=num_draws,

@@ -4,14 +4,13 @@ from pprint import pp
 import numpy as np
 import torch
 from datasets import load_dataset
+from devinterp.optim.sgld import SGLD
+from devinterp.slt.llc import LLCEstimator
+from devinterp.utils import USE_TPU_BACKEND, prepare_input, set_seed
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformer_lens.utils import lm_cross_entropy_loss, tokenize_and_concatenate
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
-from devinterp.optim.sgld import SGLD
-from devinterp.slt.llc import LLCEstimator
-from devinterp.utils import USE_TPU_BACKEND, prepare_input, set_seed
 
 
 def _test_hf(model, dataset, device: str, batch_size=8, seed=42, cores=1):
@@ -71,7 +70,7 @@ def _test_hf(model, dataset, device: str, batch_size=8, seed=42, cores=1):
         callbacks=[llc_estimator],
         evaluate=evaluate,
         sampling_method=SGLD,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=0.0002,
             noise_level=10.0,
             weight_decay=0.0,

@@ -44,7 +44,7 @@ def test_sampling_nan_error():
             evaluate=loss_fn,
             num_draws=100,
             num_chains=3,
-            optimizer_kwargs={"nbeta": 10},
+            sampling_method_kwargs={"nbeta": 10},
             device="cpu",
         )
 
@@ -89,7 +89,7 @@ def test_llc_nan_model(generated_linedot_normalcrossing_dataset):
             model,
             train_dataloader,
             evaluate=evaluate_mse,
-            optimizer_kwargs=dict(lr=1000, nbeta=1000.0),
+            sampling_method_kwargs=dict(lr=1000, nbeta=1000.0),
             sampling_method=SGLD,
             num_chains=num_chains,
             num_draws=num_draws,

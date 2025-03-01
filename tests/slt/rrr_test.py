@@ -102,7 +102,7 @@ def test_accuracy_rrr(sampling_method, m, h, n):
         model,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=0.0006, localization=1.0, nbeta=default_nbeta(train_dataloader)
         ),
         sampling_method=sampling_method,

@@ -1,3 +1,4 @@
+import os
 import warnings
 from copy import deepcopy
 from typing import Dict, List, Literal, Optional, Type, Union
@@ -28,7 +29,7 @@ def sample_single_chain(
     ref_model: nn.Module,
     loader: DataLoader,
     evaluate: EvaluateFn,
-    optimizer_kwargs: Dict,
+    sampling_method_kwargs: Dict,
     num_draws=100,
     num_burnin_steps=0,
     num_steps_bw_draws=1,
@@ -40,7 +41,11 @@ def sample_single_chain(
     device: torch.device = torch.device("cpu"),
     optimize_over_per_model_param: Optional[dict] = None,
     callbacks: List[SamplerCallback] = [],
-    use_amp: bool = False,
+    dtype: torch.dtype = (
+        torch.bfloat16
+        if os.environ.get("BF16")
+        else torch.float16 if os.environ.get("FP16") else torch.float32
+    ),
     **kwargs,
 ):
     if grad_accum_steps > 1:
@@ -56,23 +61,23 @@ def sample_single_chain(
     # Initialize new model and optimizer for this chain
     model = deepcopy(ref_model).to(device)
 
-    if "temperature" in optimizer_kwargs:
+    if "temperature" in sampling_method_kwargs:
         assert (
-            not "nbeta" in optimizer_kwargs
-        ), "Set either nbeta or temperature in optimizer_kwargs, not both"
-        optimizer_kwargs["nbeta"] = optimizer_kwargs.pop("temperature")
+            not "nbeta" in sampling_method_kwargs
+        ), "Set either nbeta or temperature in sampling_method_kwargs, not both"
+        sampling_method_kwargs["nbeta"] = sampling_method_kwargs.pop("temperature")
 
-    assert "nbeta" in optimizer_kwargs, "Set nbeta in optimizer_kwargs"
+    assert "nbeta" in sampling_method_kwargs, "Set nbeta in sampling_method_kwargs"
 
-    optimizer_metrics = optimizer_kwargs.get("metrics", [])
+    optimizer_metrics = sampling_method_kwargs.get("metrics", [])
     if any(isinstance(callback, MalaAcceptanceRate) for callback in callbacks):
         optimizer_metrics.extend(["dws", "localization_loss"])
 
     if any(isinstance(callback, NoiseNorm) for callback in callbacks):
         optimizer_metrics.extend(["noise"])
 
-    optimizer_kwargs["metrics"] = optimizer_metrics
-    optimizer_kwargs.setdefault(
+    sampling_method_kwargs["metrics"] = optimizer_metrics
+    sampling_method_kwargs.setdefault(
         "nbeta", default_nbeta(loader, grad_accum_steps=grad_accum_steps)
     )
 
@@ -87,10 +92,10 @@ def sample_single_chain(
             )
         optimizer = sampling_method(
             param_groups,
-            **optimizer_kwargs,
+            **sampling_method_kwargs,
         )
     else:
-        optimizer = sampling_method(model.parameters(), **optimizer_kwargs)
+        optimizer = sampling_method(model.parameters(), **sampling_method_kwargs)
 
     if seed is not None:
         torch.manual_seed(seed)
@@ -106,7 +111,9 @@ def sample_single_chain(
             model.train()
             data = prepare_input(data, device)
             with torch.autocast(
-                device_type=device.type, dtype=torch.float16, enabled=use_amp
+                device_type=device.type,
+                dtype=dtype,
+                enabled=dtype != torch.float32,
             ):
                 results = evaluate(model, data)
                 loss, results = split_results(results)
@@ -167,7 +174,9 @@ def sample(
     callbacks: List[SamplerCallback],
     evaluate: Optional[EvaluateFn] = None,
     sampling_method: Type[torch.optim.Optimizer] = SGLD,
-    optimizer_kwargs: Optional[Dict[str, Union[float, Literal["adaptive"]]]] = None,
+    sampling_method_kwargs: Optional[
+        Dict[str, Union[float, Literal["adaptive"]]]
+    ] = None,
     num_draws: int = 100,
     num_chains: int = 10,
     num_burnin_steps: int = 0,
@@ -181,7 +190,11 @@ def sample(
     optimize_over_per_model_param: Optional[Dict[str, List[bool]]] = None,
     gpu_idxs: Optional[List[int]] = None,
     batch_size: bool = 1,
-    use_amp: bool = False,
+    dtype: torch.dtype = (
+        torch.bfloat16
+        if os.environ.get("BF16")
+        else torch.float16 if os.environ.get("FP16") else torch.float32
+    ),
     **kwargs,
 ):
     """
@@ -202,8 +215,8 @@ def sample(
     :type callbacks: list[SamplerCallback]
     :param sampling_method: Sampling method to use (a PyTorch optimizer under the hood). Default is SGLD
     :type sampling_method: torch.optim.Optimizer, optional
-    :param optimizer_kwargs: Keyword arguments for the PyTorch optimizer (used as sampler here). Default is None (using standard SGLD parameters as defined in the SGLD class)
-    :type optimizer_kwargs: dict, optional
+    :param sampling_method_kwargs: Keyword arguments for the PyTorch optimizer (used as sampler here). Default is None (using standard SGLD parameters as defined in the SGLD class)
+    :type sampling_method_kwargs: dict, optional
     :param num_draws: Number of samples to draw. Default is 100
     :type num_draws: int, optional
     :param num_chains: Number of chains to run. Default is 10
@@ -227,8 +240,8 @@ def sample(
     A value of True (or 1) indicates that this particular element of the parameter should be optimized over. \
     None by default, which means that we optimize over all parameters.
     :type optimize_over_per_model_param: dict, optional
-    :param use_amp: Whether to use automatic mixed precision. Casts to float16 on GPUs.
-    :type use_amp: bool, optional
+    :param dtype: Data type for sampling. Default is bfloat16 if BF16 is True, float16 if FP16 is True, or float32 otherwise.
+    :type dtype: torch.dtype
     :raises ValueError: if derivative callbacks (f.e. :func:`~devinterp.slt.loss.OnlineLossStatistics`) are passed before base callbacks (f.e. :func:`~devinterp.slt.llc.OnlineLLCEstimator`)
     :raises Warning: if num_burnin_steps < num_draws
     :raises Warning: if num_draws > len(loader)
@@ -266,24 +279,24 @@ def sample(
             setattr(callback, "init_loss", init_loss)
 
     # Temperature consistency warning
-    if optimizer_kwargs is not None and (
-        "nbeta" in optimizer_kwargs or "temperature" in optimizer_kwargs
+    if sampling_method_kwargs is not None and (
+        "nbeta" in sampling_method_kwargs or "temperature" in sampling_method_kwargs
     ):
-        if "nbeta" in optimizer_kwargs:
+        if "nbeta" in sampling_method_kwargs:
             assert not any(
                 getattr(callback, "temperature", None) is not None
                 for callback in callbacks
-            ), "If you're setting nbeta in optimizer_kwargs, don't set temperature in the callbacks."
-        if "temperature" in optimizer_kwargs:
+            ), "If you're setting nbeta in sampling_method_kwargs, don't set temperature in the callbacks."
+        if "temperature" in sampling_method_kwargs:
             assert not any(
                 (
                     getattr(callback, "nbeta", None) is not None
                     and getattr(callback, "temperature") is None
                 )
                 for callback in callbacks
-            ), "If you're setting temperature in optimizer_kwargs, don't set nbeta in the callbacks."
+            ), "If you're setting temperature in sampling_method_kwargs, don't set nbeta in the callbacks."
         warnings.warn(
-            "If you're setting a nbeta or temperature in optimizer_kwargs, please also make sure to set it in the callbacks."
+            "If you're setting a nbeta or temperature in sampling_method_kwargs, please also make sure to set it in the callbacks."
         )
 
     if cores is None:
@@ -291,12 +304,6 @@ def sample(
 
     if isinstance(device, str):
         device = torch.device(device)
-
-    if device.type == "cpu" and use_amp:
-        warnings.warn(
-            "Automatic Mixed Precision (AMP) is not supported on CPU devices. Disabling AMP."
-        )
-        use_amp = False
 
     if device.type == "cuda":
         if gpu_idxs is not None:
@@ -338,10 +345,10 @@ def sample(
         init_loss=init_loss,
         grad_accum_steps=grad_accum_steps,
         sampling_method=sampling_method,
-        optimizer_kwargs=optimizer_kwargs,
+        sampling_method_kwargs=sampling_method_kwargs,
         verbose=verbose,
         optimize_over_per_model_param=optimize_over_per_model_param,
-        use_amp=use_amp,
+        dtype=dtype,
     )
 
     if cores > 1:

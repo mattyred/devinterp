@@ -54,7 +54,7 @@ def test_pass_in_temperature(
         model,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(lr=lr, temperature=temperature),
+        sampling_method_kwargs=dict(lr=lr, temperature=temperature),
         sampling_method=sampling_method,
         num_chains=num_chains,
         num_draws=num_draws,
@@ -67,7 +67,7 @@ def test_pass_in_temperature(
         model,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(lr=lr, nbeta=nbeta),
+        sampling_method_kwargs=dict(lr=lr, nbeta=nbeta),
         sampling_method=sampling_method,
         num_chains=num_chains,
         num_draws=num_draws,
@@ -114,7 +114,7 @@ def test_dont_allow_both_temp_and_nbeta(
             model,
             train_dataloader,
             evaluate=evaluate_mse,
-            optimizer_kwargs=dict(
+            sampling_method_kwargs=dict(
                 lr=lr,
                 temperature=2.0,
             ),
@@ -136,7 +136,7 @@ def test_dont_allow_both_temp_and_nbeta(
             model,
             train_dataloader,
             evaluate=evaluate_mse,
-            optimizer_kwargs=dict(
+            sampling_method_kwargs=dict(
                 lr=lr,
                 nbeta=2.0,
             ),

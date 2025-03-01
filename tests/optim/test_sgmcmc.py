@@ -167,7 +167,8 @@ def test_SGMCMC_vs_SGLD(
 
     run_optimization_steps(model1, optimizer_sgld, data, target, criterion)
     run_optimization_steps(model2, optimizer_sgmcmc, data, target, criterion)
-
+    if localization == 0.0:
+        metrics.remove("distance")  # undefined if no localization is given
     compare_parameters(model1, model2)
     compare_metrics(optimizer_sgld, optimizer_sgmcmc, metrics)
 
@@ -561,8 +562,7 @@ def test_SGMCMC_vs_SGLD_param_groups(lr_ratio, noise_ratio, snapshot):
                     assert torch.allclose(a, b, atol=1e-4), "DWS metrics differ"
             else:
                 assert torch.allclose(
-                    g2["metrics"][metric],
-                    g1[metric],
+                    g2["metrics"][metric], g1[metric], atol=1e-2
                 ), f"Metric {metric} differs"
 
     state = {

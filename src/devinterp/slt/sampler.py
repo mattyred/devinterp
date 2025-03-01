@@ -1,3 +1,4 @@
+import os
 import warnings
 from typing import Callable, Dict, List, Literal, Optional, Type, Union
 
@@ -24,7 +25,9 @@ def estimate_learning_coeff_with_summary(
     callbacks: List[Callable] = [],
     evaluate: Optional[EvaluateFn] = None,
     sampling_method: Type[torch.optim.Optimizer] = SGLD,
-    optimizer_kwargs: Optional[Dict[str, Union[float, Literal["adaptive"]]]] = None,
+    sampling_method_kwargs: Optional[
+        Dict[str, Union[float, Literal["adaptive"]]]
+    ] = None,
     num_draws: int = 100,
     num_chains: int = 10,
     num_burnin_steps: int = 0,
@@ -38,7 +41,7 @@ def estimate_learning_coeff_with_summary(
     verbose: bool = True,
     optimize_over_per_model_param: Optional[Dict[str, torch.Tensor]] = None,
     online: bool = False,
-    use_amp: bool = False,
+    dtype: Optional[torch.dtype] = None,
 ) -> dict:
     """
     Estimates the local learning coefficient and returns a dictionary of results.
@@ -64,9 +67,9 @@ def estimate_learning_coeff_with_summary(
 
     :param sampling_method: PyTorch optimizer to use for sampling. Default is SGLD. Currently implemented alternatives include SGNHT.
     :type sampling_method: torch.optim.Optimizer
-    :param optimizer_kwargs: Dictionary of keyword arguments to pass to the optimizer. \
+    :param sampling_method_kwargs: Dictionary of keyword arguments to pass to the optimizer. \
     For SGLD, this includes nbeta.
-    :type optimizer_kwargs: dict
+    :type sampling_method_kwargs: dict
     :param num_draws: Number of draws to sample per chain.
     :type num_draws: int
     :param num_chains: Number of chains to sample from.
@@ -106,34 +109,40 @@ def estimate_learning_coeff_with_summary(
     :type optimize_over_per_model_param: dict of str -> torch.Tensor[bool]
     :param online: Whether to use the online version of the LLC estimator.
     :type online: bool
-    :param use_amp: Whether to use automatic mixed precision (casts to float16 on GPUs). Significantly speeds up sampling at the cost of a minor loss in precision (default: False).
-    :type use_amp: bool
+    :param dtype: Data type for sampling. Default is bfloat16 if BF16 is True, float16 if FP16 is True, or float32 otherwise.
+    :type dtype: torch.dtype, optional
     :returns: A dictionary containing the local learning coefficient and loss traces.
     """
 
     model.to(device)
     # Temperature consistency warning
-    if "nbeta" in optimizer_kwargs and not "temperature" in optimizer_kwargs:
+    if (
+        "nbeta" in sampling_method_kwargs
+        and not "temperature" in sampling_method_kwargs
+    ):
         warnings.warn(
             "Using passed in nbeta. Make sure callbacks are also initialized with the same nbeta."
         )
-    elif not "nbeta" in optimizer_kwargs and "temperature" in optimizer_kwargs:
+    elif (
+        not "nbeta" in sampling_method_kwargs
+        and "temperature" in sampling_method_kwargs
+    ):
         warnings.warn(
             "Temperature is deprecated, please switch to using nbeta here and in callbacks."
         )
         warnings.warn(
             "Using passed in temperature. Make sure callbacks are also initialized with the same temperature."
         )
-        optimizer_kwargs["nbeta"] = optimizer_kwargs.pop("temperature")
-    elif "nbeta" in optimizer_kwargs and "temperature" in optimizer_kwargs:
+        sampling_method_kwargs["nbeta"] = sampling_method_kwargs.pop("temperature")
+    elif "nbeta" in sampling_method_kwargs and "temperature" in sampling_method_kwargs:
         raise ValueError(
-            "Found temperature and nbeta in optimizer_kwargs. Temperature is deprecated, please switch to using nbeta only (also in callbacks)."
+            "Found temperature and nbeta in sampling_method_kwargs. Temperature is deprecated, please switch to using nbeta only (also in callbacks)."
         )
 
     else:
         warnings.warn("nbeta not set - using default nbeta.")
 
-    optimizer_kwargs.setdefault(
+    sampling_method_kwargs.setdefault(
         "nbeta", default_nbeta(dataloader=loader, grad_accum_steps=grad_accum_steps)
     )
     if not init_loss:
@@ -146,7 +155,7 @@ def estimate_learning_coeff_with_summary(
         llc_estimator = OnlineLLCEstimator(
             num_chains,
             num_draws,
-            nbeta=optimizer_kwargs["nbeta"],
+            nbeta=sampling_method_kwargs["nbeta"],
             device=device,
             init_loss=init_loss,
         )
@@ -154,7 +163,7 @@ def estimate_learning_coeff_with_summary(
         llc_estimator = LLCEstimator(
             num_chains,
             num_draws,
-            nbeta=optimizer_kwargs["nbeta"],
+            nbeta=sampling_method_kwargs["nbeta"],
             device=device,
             init_loss=init_loss,
         )
@@ -166,7 +175,7 @@ def estimate_learning_coeff_with_summary(
         loader=loader,
         evaluate=evaluate,
         sampling_method=sampling_method,
-        optimizer_kwargs=optimizer_kwargs,
+        sampling_method_kwargs=sampling_method_kwargs,
         num_draws=num_draws,
         num_chains=num_chains,
         num_burnin_steps=num_burnin_steps,
@@ -179,7 +188,7 @@ def estimate_learning_coeff_with_summary(
         callbacks=callbacks,
         optimize_over_per_model_param=optimize_over_per_model_param,
         gpu_idxs=gpu_idxs,
-        use_amp=use_amp,
+        dtype=dtype,
         init_loss=init_loss,
     )
 
@@ -198,7 +207,9 @@ def estimate_learning_coeff(
     callbacks: List[Callable] = [],
     evaluate: Optional[EvaluateFn] = None,
     sampling_method: Type[torch.optim.Optimizer] = SGLD,
-    optimizer_kwargs: Optional[Dict[str, Union[float, Literal["adaptive"]]]] = None,
+    sampling_method_kwargs: Optional[
+        Dict[str, Union[float, Literal["adaptive"]]]
+    ] = None,
     num_draws: int = 100,
     num_chains: int = 10,
     num_burnin_steps: int = 0,
@@ -210,6 +221,11 @@ def estimate_learning_coeff(
     device: Union[torch.device, str] = torch.device("cpu"),
     verbose: bool = True,
     optimize_over_per_model_param: Optional[Dict[str, List[bool]]] = None,
+    dtype: Optional[torch.dtype] = (
+        torch.bfloat16
+        if os.environ.get("BF16")
+        else torch.float16 if os.environ.get("FP16") else torch.float32
+    ),
 ) -> float:
     """
     Estimates the local learning coefficient and returns a dictionary of results.
@@ -235,9 +251,9 @@ def estimate_learning_coeff(
 
     :param sampling_method: PyTorch optimizer to use for sampling. Default is SGLD. Currently implemented alternatives include SGNHT.
     :type sampling_method: torch.optim.Optimizer
-    :param optimizer_kwargs: Dictionary of keyword arguments to pass to the optimizer. \
+    :param sampling_method_kwargs: Dictionary of keyword arguments to pass to the optimizer. \
     For SGLD, this includes nbeta.
-    :type optimizer_kwargs: dict
+    :type sampling_method_kwargs: dict
     :param num_draws: Number of draws to sample per chain.
     :type num_draws: int
     :param num_chains: Number of chains to sample from.
@@ -277,8 +293,8 @@ def estimate_learning_coeff(
     :type optimize_over_per_model_param: dict of str -> torch.Tensor[bool]
     :param online: Whether to use the online version of the LLC estimator.
     :type online: bool
-    :param use_amp: Whether to use automatic mixed precision (casts to float16 on GPUs). Significantly speeds up sampling at the cost of a minor loss in precision (default: False).
-    :type use_amp: bool
+    :param dtype: Data type for sampling. Default is bfloat16 if BF16 is True, float16 if FP16 is True, or float32 otherwise.
+    :type dtype: torch.dtype, optional
     :returns: A single float representing the local learning coefficient.
     """
 
@@ -287,7 +303,7 @@ def estimate_learning_coeff(
         loader=loader,
         evaluate=evaluate,
         sampling_method=sampling_method,
-        optimizer_kwargs=optimizer_kwargs,
+        sampling_method_kwargs=sampling_method_kwargs,
         num_draws=num_draws,
         num_chains=num_chains,
         num_burnin_steps=num_burnin_steps,
@@ -301,4 +317,5 @@ def estimate_learning_coeff(
         online=False,
         init_loss=init_loss,
         optimize_over_per_model_param=optimize_over_per_model_param,
+        dtype=dtype,
     )["llc/mean"]

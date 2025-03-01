@@ -65,7 +65,7 @@ def get_stats(
     num_workers=0,
     batch_size=64,
     grad_accum_steps=1,
-    use_amp=False,
+    dtype=torch.float32,
 ):
     # Load a pretrained MNIST classifier
     model = AutoModelForImageClassification.from_pretrained(
@@ -88,7 +88,7 @@ def get_stats(
         loader=loader,
         evaluate=evaluate,
         sampling_method=SGLD,
-        optimizer_kwargs=dict(lr=4e-4, localization=100.0, nbeta=2.0),
+        sampling_method_kwargs=dict(lr=4e-4, localization=100.0, nbeta=2.0),
         num_chains=chains,  # How many independent chains to run
         num_draws=10,  # How many samples to draw per chain
         num_burnin_steps=0,  # How many samples to discard at the beginning of each chain
@@ -99,8 +99,8 @@ def get_stats(
         gpu_idxs=gpu_idxs,  # Which GPUs to use ([0, 1] for using GPU 0 and 1)
         seed=seed,
         grad_accum_steps=grad_accum_steps,
-        use_amp=use_amp,
         init_loss=0.1,
+        dtype=dtype,
     )
 
 
@@ -210,6 +210,6 @@ def test_gpu_grad_accum(data, gpu_default: dict):
 
 
 @pytest.mark.gpu
-def test_gpu_amp(data, gpu_default: dict):
-    amp_stats = get_stats(data, "cuda", seed=100, cores=4, use_amp=True)
-    check(gpu_default, amp_stats, 0.2)
+def test_gpu_bf16(data, gpu_default: dict):
+    bf16_stats = get_stats(data, "cuda", seed=100, cores=4, dtype=torch.bfloat16)
+    check(gpu_default, bf16_stats, 0.2)
