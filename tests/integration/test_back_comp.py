@@ -153,17 +153,17 @@ def test_warn_on_default_nbeta():
 
         nbeta = default_nbeta(
             DataLoader(TensorDataset(torch.randn(100, 10)), batch_size=1),
-            grad_accum_steps=1,
+            gradient_accumulation_steps=1,
         )
         # Check that a warning was issued
         mock_warn.warn.assert_called_with(
-            "default nbeta is undefined for batch_size * grad_accum_steps == 1, falling back to default value of 1"
+            "default nbeta is undefined for batch_size * gradient_accumulation_steps == 1, falling back to default value of 1"
         )
     with mock.patch("devinterp.utils.warnings") as mock_warn:
 
-        nbeta = default_nbeta(1, grad_accum_steps=1)
+        nbeta = default_nbeta(1, gradient_accumulation_steps=1)
 
         # Check that a warning was issued
         mock_warn.warn.assert_called_with(
-            "default nbeta is undefined for batch_size * grad_accum_steps == 1, falling back to default value of 1"
+            "default nbeta is undefined for batch_size * gradient_accumulation_steps == 1, falling back to default value of 1"
         )

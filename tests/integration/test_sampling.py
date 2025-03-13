@@ -64,7 +64,7 @@ def get_stats(
     seed=None,
     num_workers=0,
     batch_size=64,
-    grad_accum_steps=1,
+    gradient_accumulation_steps=1,
     dtype=torch.float32,
 ):
     # Load a pretrained MNIST classifier
@@ -98,7 +98,7 @@ def get_stats(
         cores=cores,  # How many cores to use for parallelization
         gpu_idxs=gpu_idxs,  # Which GPUs to use ([0, 1] for using GPU 0 and 1)
         seed=seed,
-        grad_accum_steps=grad_accum_steps,
+        gradient_accumulation_steps=gradient_accumulation_steps,
         init_loss=0.1,
         dtype=dtype,
     )
@@ -152,7 +152,7 @@ def test_cpu_multicore(data, cpu_default):
 
 def test_grad_accum(data, cpu_default: dict):
     grad_accum_stats = get_stats(
-        data, "cpu", seed=100, grad_accum_steps=4, batch_size=16
+        data, "cpu", seed=100, gradient_accumulation_steps=4, batch_size=16
     )
     check(cpu_default, grad_accum_stats, 1)
 
@@ -204,7 +204,7 @@ def test_multigpu_multicore(data, gpu_default):
 @pytest.mark.gpu
 def test_gpu_grad_accum(data, gpu_default: dict):
     grad_accum_stats = get_stats(
-        data, "cuda", seed=100, cores=4, grad_accum_steps=2, batch_size=128
+        data, "cuda", seed=100, cores=4, gradient_accumulation_steps=2, batch_size=128
     )
     check(gpu_default, grad_accum_stats, 1)
 

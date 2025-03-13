@@ -80,22 +80,22 @@ def plot_trace(
 
 
 def default_nbeta(
-    dataloader: Union[DataLoader, int], grad_accum_steps: int = 1
+    dataloader: Union[DataLoader, int], gradient_accumulation_steps: int = 1
 ) -> float:
     if isinstance(dataloader, DataLoader):
-        default_nbeta = dataloader.batch_size * grad_accum_steps
+        default_nbeta = dataloader.batch_size * gradient_accumulation_steps
         if default_nbeta <= 1:
             warnings.warn(
-                "default nbeta is undefined for batch_size * grad_accum_steps == 1, falling back to default value of 1"
+                "default nbeta is undefined for batch_size * gradient_accumulation_steps == 1, falling back to default value of 1"
             )
             return 1
         else:
             return default_nbeta / np.log(default_nbeta)
     elif isinstance(dataloader, int):
-        default_nbeta = dataloader * grad_accum_steps
+        default_nbeta = dataloader * gradient_accumulation_steps
         if default_nbeta <= 1:
             warnings.warn(
-                "default nbeta is undefined for batch_size * grad_accum_steps == 1, falling back to default value of 1"
+                "default nbeta is undefined for batch_size * gradient_accumulation_steps == 1, falling back to default value of 1"
             )
             return 1
         else:

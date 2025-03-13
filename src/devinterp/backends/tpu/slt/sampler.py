@@ -40,7 +40,7 @@ def sample_single_chain(
     num_draws=100,
     num_burnin_steps=0,
     num_steps_bw_draws=1,
-    grad_accum_steps: int = 1,
+    gradient_accumulation_steps: int = 1,
     sampling_method: Type[torch.optim.Optimizer] = SGLD,
     scheduler_cls: Optional[Type[torch.optim.lr_scheduler._LRScheduler]] = None,
     scheduler_kwargs: Optional[Dict] = None,
@@ -143,12 +143,12 @@ def sample_single_chain(
         # We take one very large batch and sample SGLD on the fixed batch.
         cycler = cycle(loader)
         feed = []
-        for step in range(grad_accum_steps):
+        for step in range(gradient_accumulation_steps):
             data = next(cycler)
             feed.append(data)
-        feed = zip(range(num_steps * grad_accum_steps), cycle(feed))
+        feed = zip(range(num_steps * gradient_accumulation_steps), cycle(feed))
     else:
-        feed = zip(range(num_steps * grad_accum_steps), cycle(loader))
+        feed = zip(range(num_steps * gradient_accumulation_steps), cycle(loader))
     loader = cycle(loader)
 
     model.train()
@@ -167,11 +167,11 @@ def sample_single_chain(
             # optimizer.zero_grad()
             loss, results = None, {}
 
-            # Note: The effective batch size is grad_accum_steps * batch_size
-            # To implement George's alternate SGLD sampling method, we set grad_accum_steps to, say, 100
+            # Note: The effective batch size is gradient_accumulation_steps * batch_size
+            # To implement George's alternate SGLD sampling method, we set gradient_accumulation_steps to, say, 100
             # and batch_size to 32 to sample from 1 effective batch of size 3.2k
 
-            for j in range(grad_accum_steps):
+            for j in range(gradient_accumulation_steps):
                 data = next(loader)
                 with autocast(
                     device=xm.xla_device(),
@@ -179,27 +179,27 @@ def sample_single_chain(
                     enabled=dtype != torch.float32,
                 ):
                     _loss, _results = evaluate(model, prepare_input(data, device))
-                    _mean_loss = _loss.mean() / grad_accum_steps
+                    _mean_loss = _loss.mean() / gradient_accumulation_steps
 
                 if not no_grad:
                     _mean_loss.backward()
 
                 if j == 0:
                     # First gradient accumulation iteration: create the loss object
-                    loss = _loss.detach() / grad_accum_steps
+                    loss = _loss.detach() / gradient_accumulation_steps
                     for k, v in _results.items():
                         if torch.is_tensor(v):
-                            results[k] = v.detach() / grad_accum_steps
+                            results[k] = v.detach() / gradient_accumulation_steps
 
                 else:
                     # Later gradient accumulation iterations: accumulate the loss
-                    loss += _loss.detach() / grad_accum_steps
+                    loss += _loss.detach() / gradient_accumulation_steps
 
                     for k, v in _results.items():
                         if torch.is_tensor(v):
-                            results[k] += v.detach() / grad_accum_steps
+                            results[k] += v.detach() / gradient_accumulation_steps
 
-                pbar.set_postfix({"grad_accum_steps": j})
+                pbar.set_postfix({"gradient_accumulation_steps": j})
 
                 mark_step_if_xla(device)
 
@@ -290,7 +290,7 @@ def sample(
     num_burnin_steps: int = 0,
     num_steps_bw_draws: int = 1,
     init_loss=None,
-    grad_accum_steps: int = 1,
+    gradient_accumulation_steps: int = 1,
     cores: int = 1,
     seed: Optional[Union[int, List[int]]] = None,
     device: Union[torch.device, str] = torch.device("cpu"),
@@ -406,7 +406,7 @@ def sample(
         num_chains=num_chains,
         seeds=seeds,
         batch_size=batch_size,
-        grad_accum_steps=grad_accum_steps,
+        gradient_accumulation_steps=gradient_accumulation_steps,
         optimize_over_per_model_param=optimize_over_per_model_param,
         init_noise=init_noise,
         shuffle=shuffle,

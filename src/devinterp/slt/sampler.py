@@ -33,7 +33,7 @@ def estimate_learning_coeff_with_summary(
     num_burnin_steps: int = 0,
     num_steps_bw_draws: int = 1,
     init_loss: float = None,
-    grad_accum_steps: int = 1,
+    gradient_accumulation_steps: int = 1,
     cores: Union[int, List[Union[str, torch.device]]] = 1,
     seed: Optional[Union[int, List[int]]] = None,
     device: Union[torch.device, str] = torch.device("cpu"),
@@ -80,8 +80,8 @@ def estimate_learning_coeff_with_summary(
     :type num_steps_bw_draws: int
     :param init_loss: Initial loss to use for the LLC estimator. If None, the initial loss will be computed using the first batch of data.
     :type init_loss: float
-    :param grad_accum_steps: Number of gradient accumulation steps to use per backward pass. Note that the effective batch size is batch_size * grad_accum_steps.
-    :type grad_accum_steps: int
+    :param gradient_accumulation_steps: Number of gradient accumulation steps to use per backward pass. Note that the effective batch size is batch_size * gradient_accumulation_steps.
+    :type gradient_accumulation_steps: int
     :param cores: Number of cores to use for parallel sampling. Can be either an integer (will use cores starting from device 0) or a list of cores.
     :type cores: int or list of torch.device or str
     :param seed: Seed for reproducibility. If a list of seeds is provided, each chain will be seeded with the corresponding seed. 
@@ -143,11 +143,14 @@ def estimate_learning_coeff_with_summary(
         warnings.warn("nbeta not set - using default nbeta.")
 
     sampling_method_kwargs.setdefault(
-        "nbeta", default_nbeta(dataloader=loader, grad_accum_steps=grad_accum_steps)
+        "nbeta",
+        default_nbeta(
+            dataloader=loader, gradient_accumulation_steps=gradient_accumulation_steps
+        ),
     )
     if not init_loss:
         init_loss = get_init_loss_multi_batch(
-            loader, num_chains * grad_accum_steps, model, evaluate, device
+            loader, num_chains * gradient_accumulation_steps, model, evaluate, device
         )
         # alternative: init_loss = get_init_loss_full_batch(loader, model, evaluate, device)
         # alternative: init_loss = get_init_loss_one_batch(loader, model, evaluate, device)
@@ -180,7 +183,7 @@ def estimate_learning_coeff_with_summary(
         num_chains=num_chains,
         num_burnin_steps=num_burnin_steps,
         num_steps_bw_draws=num_steps_bw_draws,
-        grad_accum_steps=grad_accum_steps,
+        gradient_accumulation_steps=gradient_accumulation_steps,
         cores=cores,
         seed=seed,
         device=device,
@@ -215,7 +218,7 @@ def estimate_learning_coeff(
     num_burnin_steps: int = 0,
     num_steps_bw_draws: int = 1,
     init_loss: float = None,
-    grad_accum_steps: int = 1,
+    gradient_accumulation_steps: int = 1,
     cores: Union[int, List[Union[str, torch.device]]] = 1,
     seed: Optional[Union[int, List[int]]] = None,
     device: Union[torch.device, str] = torch.device("cpu"),
@@ -264,8 +267,8 @@ def estimate_learning_coeff(
     :type num_steps_bw_draws: int
     :param init_loss: Initial loss to use for the LLC estimator. If None, the initial loss will be computed using the first batch of data.
     :type init_loss: float
-    :param grad_accum_steps: Number of gradient accumulation steps to use per backward pass. Note that the effective batch size is batch_size * grad_accum_steps.
-    :type grad_accum_steps: int
+    :param gradient_accumulation_steps: Number of gradient accumulation steps to use per backward pass. Note that the effective batch size is batch_size * gradient_accumulation_steps.
+    :type gradient_accumulation_steps: int
     :param cores: Number of cores to use for parallel sampling. Can be either an integer (will use cores starting from device 0) or a list of cores.
     :type cores: int or list of torch.device or str
     :param seed: Seed for reproducibility. If a list of seeds is provided, each chain will be seeded with the corresponding seed. 
@@ -308,7 +311,7 @@ def estimate_learning_coeff(
         num_chains=num_chains,
         num_burnin_steps=num_burnin_steps,
         num_steps_bw_draws=num_steps_bw_draws,
-        grad_accum_steps=grad_accum_steps,
+        gradient_accumulation_steps=gradient_accumulation_steps,
         cores=1,
         seed=seed,
         device=device,

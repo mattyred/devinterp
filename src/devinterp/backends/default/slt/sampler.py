@@ -33,7 +33,7 @@ def sample_single_chain(
     num_draws=100,
     num_burnin_steps=0,
     num_steps_bw_draws=1,
-    grad_accum_steps=1,
+    gradient_accumulation_steps=1,
     sampling_method: Type[torch.optim.Optimizer] = SGLD,
     chain: int = 0,
     seed: Optional[int] = None,
@@ -48,10 +48,12 @@ def sample_single_chain(
     ),
     **kwargs,
 ):
-    if grad_accum_steps > 1:
-        assert isinstance(grad_accum_steps, int), "grad_accum_steps must be an integer."
-        num_steps_bw_draws *= grad_accum_steps
-        num_burnin_steps *= grad_accum_steps
+    if gradient_accumulation_steps > 1:
+        assert isinstance(
+            gradient_accumulation_steps, int
+        ), "gradient_accumulation_steps must be an integer."
+        num_steps_bw_draws *= gradient_accumulation_steps
+        num_burnin_steps *= gradient_accumulation_steps
 
     if num_draws > len(loader):
         warnings.warn(
@@ -78,7 +80,8 @@ def sample_single_chain(
 
     sampling_method_kwargs["metrics"] = optimizer_metrics
     sampling_method_kwargs.setdefault(
-        "nbeta", default_nbeta(loader, grad_accum_steps=grad_accum_steps)
+        "nbeta",
+        default_nbeta(loader, gradient_accumulation_steps=gradient_accumulation_steps),
     )
 
     if optimize_over_per_model_param:
@@ -104,7 +107,9 @@ def sample_single_chain(
 
     cumulative_loss = 0
     with tqdm(
-        desc=f"Chain {chain}", total=num_steps // grad_accum_steps, disable=not verbose
+        desc=f"Chain {chain}",
+        total=num_steps // gradient_accumulation_steps,
+        disable=not verbose,
     ) as pbar:
         model.train()
         for i, data in zip(range(num_steps), cycle(loader)):
@@ -118,13 +123,13 @@ def sample_single_chain(
                 results = evaluate(model, data)
                 loss, results = split_results(results)
 
-                loss /= grad_accum_steps
+                loss /= gradient_accumulation_steps
                 cumulative_loss += loss
                 loss.backward()
 
             # i+1 instead of i so that the gradient accumulates to an entire batch first
-            # otherwise the first draw happens after batch_size/grad_accum_steps samples instead of batch_size samples
-            if (i + 1) % grad_accum_steps == 0:
+            # otherwise the first draw happens after batch_size/gradient_accumulation_steps samples instead of batch_size samples
+            if (i + 1) % gradient_accumulation_steps == 0:
                 optimizer.step()
 
             if (
@@ -140,7 +145,7 @@ def sample_single_chain(
                     for callback in callbacks:
                         callback(**locals())  # Cursed. This is the way
 
-            if (i + 1) % grad_accum_steps == 0:
+            if (i + 1) % gradient_accumulation_steps == 0:
                 optimizer.zero_grad()
                 cumulative_loss = 0
                 pbar.update(1)
@@ -182,7 +187,7 @@ def sample(
     num_burnin_steps: int = 0,
     num_steps_bw_draws: int = 1,
     init_loss: float = None,
-    grad_accum_steps: int = 1,
+    gradient_accumulation_steps: int = 1,
     cores: Union[int, List[Union[str, torch.device]]] = 1,
     seed: Optional[Union[int, List[int]]] = None,
     device: Union[torch.device, str] = torch.device("cpu"),
@@ -266,7 +271,7 @@ def sample(
             init_loss_seed = seed
         init_loss = get_init_loss_multi_batch(
             loader,
-            num_chains * grad_accum_steps,
+            num_chains * gradient_accumulation_steps,
             model,
             evaluate,
             device,
@@ -343,7 +348,7 @@ def sample(
         num_burnin_steps=num_burnin_steps,
         num_steps_bw_draws=num_steps_bw_draws,
         init_loss=init_loss,
-        grad_accum_steps=grad_accum_steps,
+        gradient_accumulation_steps=gradient_accumulation_steps,
         sampling_method=sampling_method,
         sampling_method_kwargs=sampling_method_kwargs,
         verbose=verbose,
