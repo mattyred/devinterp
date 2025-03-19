@@ -22,9 +22,19 @@ classifiers = [
 dependencies = {file = ["requirements.txt"]}
 
 [project.optional-dependencies]
-dev = ["pytest==7.4.3", "transformers", "datasets", "transformer_lens", "syrupy"]
 docs = ["sphinx", "sphinx-math-dollar", "sphinx-rtd-theme", "sphinx-autobuild", "myst_parser"]
 vis = ["plotly>=5.20.0"]
+
+[dependency-groups]
+dev = [
+    "pytest==7.4.3",
+    "pytest-cov>=6.0.0",
+    "pytest-xdist>=3.6.1",
+    "transformers",
+    "datasets",
+    "transformer_lens",
+    "syrupy"
+]
 
 
 [project.urls]
