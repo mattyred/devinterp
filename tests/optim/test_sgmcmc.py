@@ -7,7 +7,6 @@ import torch.nn as nn
 from devinterp.optim.preconditioner import RMSpropPreconditioner
 from devinterp.optim.sgld import SGLD
 from devinterp.optim.sgmcmc import SGMCMC
-from syrupy.assertion import SnapshotAssertion
 
 BATCH_SIZE = 3
 WIDTH = 5
@@ -197,7 +196,7 @@ def test_optimize_over(
     bounding_box_size,
     weight_decay,
     optimize_over,
-    snapshot: SnapshotAssertion,
+    snapshot,
 ):
     # Create identical models
     model1, model2 = create_paired_models()
