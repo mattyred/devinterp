@@ -66,8 +66,15 @@ class LLCEstimator(SamplerCallback):
         if os.environ.get("USE_SPMD", "0") == "1" and not str(self.device).startswith(
             "cpu:"
         ):
-            # no need to reduce if we're using SPMD
-            pass
+            if str(self.device).startswith("cuda") and torch.cuda.device_count() > 1:
+                if torch.distributed.is_initialized():
+                    torch.distributed.barrier()
+                    torch.distributed.all_reduce(
+                        self.losses, op=torch.distributed.ReduceOp.AVG
+                    )
+            else:
+                pass
+
         elif USE_TPU_BACKEND and str(self.device).startswith("xla:"):
             import torch_xla.core.xla_model as xm
 
@@ -98,6 +105,14 @@ class LLCEstimator(SamplerCallback):
         # bypass automatic bfloat16 issues
         if os.environ.get("XLA_USE_BF16", "0") == "1" and str(self.device).startswith(
             "xla:"
+        ):
+            self.llc_per_chain = self.nbeta.to(device="cpu", dtype=torch.float32) * (
+                avg_losses.to(device="cpu", dtype=torch.float32)
+                - self.init_loss.to(device="cpu", dtype=torch.float32)
+            )
+        elif (
+            str(self.device).startswith("cuda")
+            and os.environ.get("USE_SPMD", "0") == "1"
         ):
             self.llc_per_chain = self.nbeta.to(device="cpu", dtype=torch.float32) * (
                 avg_losses.to(device="cpu", dtype=torch.float32)
