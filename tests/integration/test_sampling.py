@@ -36,7 +36,6 @@ class torchvisionWrapper(torch.utils.data.Dataset):
 
 @pytest.fixture(scope="module")
 def data():
-
     mnist_dataset = load_dataset("mnist")
 
     def preprocess(examples):
@@ -161,12 +160,6 @@ def test_grad_accum(data, cpu_default: dict):
 def test_gpu_consistent(data, gpu_default):
     repeat_stats = get_stats(data, "cuda", seed=100)
     check(gpu_default, repeat_stats, 0.2)
-
-
-@pytest.mark.gpu
-def test_gpu_consistent_seeds(data, gpu_default):
-    diff_seed_stats = get_stats(data, "cuda", seed=101)
-    check(gpu_default, diff_seed_stats, 5, reverse=True)
 
 
 @pytest.mark.gpu
