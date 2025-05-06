@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from devinterp.backends.default.slt.sampler import sample
 from devinterp.optim import SGLD, SGMCMC
 from devinterp.slt.llc import LLCEstimator
-from devinterp.test_utils import *
 from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -68,7 +67,7 @@ def generated_rrr_dataset(m, n):
         (3, 8, 4),  # case 4
     ],
 )
-def test_accuracy_rrr(sampling_method, m, h, n):
+def test_accuracy_rrr(sampling_method, m, h, n, ReducedRankRegressor):
     # see "The Generalization Error of Reduced Rank Regression in Bayesian Estimation", M. Aoyagi & S. Watanabe, 2004.
     # We train this model long enough to (hopefully) not end up in a local min
     torch.manual_seed(1)

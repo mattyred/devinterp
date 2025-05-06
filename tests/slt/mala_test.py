@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from devinterp.optim import SGLD, SGMCMC
 from devinterp.slt.mala import MalaAcceptanceRate, mala_acceptance_probability
 from devinterp.slt.sampler import sample
-from devinterp.test_utils import *
 from devinterp.utils import default_nbeta, make_evaluate
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -22,18 +22,6 @@ class Polynomial(nn.Module):
 
     def forward(self, x):
         return torch.sum(torch.pow(self.weights, self.powers))
-
-
-@pytest.fixture
-def generated_normalcrossing_dataset():
-    torch.manual_seed(42)
-    np.random.seed(42)
-    num_samples = 1000
-    x = torch.zeros(num_samples)
-    y = torch.zeros(num_samples)
-    train_data = TensorDataset(x, y)
-    train_dataloader = DataLoader(train_data, batch_size=num_samples, shuffle=True)
-    return train_dataloader, train_data, x, y
 
 
 def linear_loss(y_preds, ys):

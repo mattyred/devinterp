@@ -12,22 +12,8 @@ from devinterp.optim.sgld import SGLD
 from devinterp.optim.sgmcmc import SGMCMC
 from devinterp.slt.llc import LLCEstimator
 from devinterp.slt.sampler import sample
-from devinterp.test_utils import *
 from devinterp.utils import *
 from torch.utils.data import DataLoader, TensorDataset
-
-
-@pytest.fixture
-def generated_normalcrossing_dataset():
-    torch.manual_seed(42)
-    np.random.seed(42)
-    sigma = 0.25
-    num_samples = 1000
-    x = torch.normal(0, 2, size=(num_samples,))
-    y = sigma * torch.normal(0, 1, size=(num_samples,))
-    train_data = TensorDataset(x, y)
-    train_dataloader = DataLoader(train_data, batch_size=num_samples, shuffle=True)
-    return train_dataloader, train_data, x, y
 
 
 def generated_normalcrossing_dataset_seeded(seed):
@@ -64,7 +50,7 @@ SAMPLE_POINTS = [[0.0, 0.0, 1.0], [1.0, 1.0, 1.0]]
 @pytest.mark.parametrize("powers", POWERS)
 @pytest.mark.parametrize("sample_point", SAMPLE_POINTS)
 def test_rllc_normalcrossing_between_powers(
-    generated_normalcrossing_dataset, sampling_method, powers, sample_point
+    generated_normalcrossing_dataset, sampling_method, powers, sample_point, Polynomial
 ):
     seed = 42
     torch.manual_seed(seed)
@@ -156,6 +142,7 @@ def test_restricted_gradient_normalcrossing_between_dims(
     relevant_powers,
     extra_dim_power,
     sample_point,
+    Polynomial,
 ):
     torch.manual_seed(42)
     seed = 42
@@ -238,10 +225,7 @@ POWERS = [
 @pytest.mark.parametrize("extra_dim_power", EXTRA_DIM_POWER)
 @pytest.mark.parametrize("sample_point", SAMPLE_POINTS)
 def test_rllc_full_normalcrossing_between_dims(
-    sampling_method,
-    relevant_powers,
-    extra_dim_power,
-    sample_point,
+    sampling_method, relevant_powers, extra_dim_power, sample_point, Polynomial
 ):
     seed = 5
     torch.manual_seed(seed)
@@ -314,7 +298,7 @@ POWERS = [
 @pytest.mark.parametrize("sampling_method", [SGLD, SGMCMC.sgld])
 @pytest.mark.parametrize("relevant_powers", POWERS)
 def test_rllc_different_from_full_llc_between_dims(
-    generated_normalcrossing_dataset, sampling_method, relevant_powers
+    generated_normalcrossing_dataset, sampling_method, relevant_powers, Polynomial
 ):
     torch.manual_seed(42)
     seed = 42

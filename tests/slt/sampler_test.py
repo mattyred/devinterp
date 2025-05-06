@@ -6,26 +6,12 @@ from devinterp.optim import SGLD, SGMCMC
 from devinterp.optim.sgnht import SGNHT
 from devinterp.slt.llc import LLCEstimator
 from devinterp.slt.sampler import sample
-from devinterp.test_utils import *
 from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
 from torch.utils.data import DataLoader, TensorDataset
 
 
-@pytest.fixture
-def generated_normalcrossing_dataset():
-    torch.manual_seed(42)
-    np.random.seed(42)
-    sigma = 0.25
-    num_samples = 1000
-    x = torch.normal(0, 2, size=(num_samples,))
-    y = sigma * torch.normal(0, 1, size=(num_samples,))
-    train_data = TensorDataset(x, y)
-    train_dataloader = DataLoader(train_data, batch_size=num_samples, shuffle=True)
-    return train_dataloader, train_data, x, y
-
-
 @pytest.mark.parametrize("sampling_method", [SGLD, SGNHT, SGMCMC.sgld])
-def test_seeding(generated_normalcrossing_dataset, sampling_method):
+def test_seeding(generated_normalcrossing_dataset, sampling_method, Polynomial):
     torch.manual_seed(42)
     seed = 42
 

@@ -6,38 +6,23 @@ import torch.nn.functional as F
 from devinterp.optim import SGLD, SGMCMC
 from devinterp.slt.llc import LLCEstimator
 from devinterp.slt.sampler import sample
-from devinterp.test_utils import *
 from devinterp.utils import *
 from torch.utils.data import DataLoader, TensorDataset
 
 
-@pytest.fixture
-def generated_linedot_normalcrossing_dataset():
-    torch.manual_seed(42)
-    np.random.seed(42)
-    sigma = 0.25
-    num_samples = 1000
-    x = torch.normal(0, 2, size=(num_samples,))
-    y = sigma * torch.normal(0, 1, size=(num_samples,))
-    train_data = TensorDataset(x, y)
-    train_dataloader = DataLoader(train_data, batch_size=num_samples, shuffle=True)
-    return train_dataloader, train_data, x, y
-
-
 @pytest.mark.parametrize("sampling_method", [SGLD, SGMCMC.sgld])
-@pytest.mark.parametrize(
-    "model", [Polynomial, LinePlusDot]
-)  # LinePlusDot currently not tested, TODO
+@pytest.mark.parametrize("model_name", ["Polynomial", "LinePlusDot"])
 @pytest.mark.parametrize("dim", [2, 10])
 def test_linedot_normal_crossing(
-    generated_linedot_normalcrossing_dataset, sampling_method, model, dim
+    generated_linedot_normalcrossing_dataset, sampling_method, model_name, dim, request
 ):
     seed = 42
     torch.manual_seed(seed)
-    if model == Polynomial:
-        model = model([2 for _ in range(dim)])
+    Model = request.getfixturevalue(model_name)
+    if model_name == "Polynomial":
+        model = Model([2 for _ in range(dim)])
     else:
-        model = model(dim)
+        model = Model(dim)
     train_dataloader, _, _, _ = generated_linedot_normalcrossing_dataset
     lr = (
         0.0001 / dim
@@ -82,4 +67,4 @@ def test_linedot_normal_crossing(
         llcs += [llc_estimator.get_results()["llc/mean"]]
     assert (
         np.diff(llcs) >= 0
-    ).all(), f"Ordinality not preserved for sampler {sampling_method} on {dim}-d {model}: llcs {llcs} are not in ascending order."
+    ).all(), f"Ordinality not preserved for sampler {sampling_method} on {dim}-d {model_name}: llcs {llcs} are not in ascending order."

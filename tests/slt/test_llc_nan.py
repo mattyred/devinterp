@@ -5,7 +5,6 @@ import torch.nn as nn
 from devinterp.optim.sgld import SGLD
 from devinterp.slt.llc import LLCEstimator, OnlineLLCEstimator
 from devinterp.slt.sampler import estimate_learning_coeff, sample
-from devinterp.test_utils import DummyNaNModel, Polynomial
 from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -24,7 +23,7 @@ def test_llc_estimator_nan_error():
         llc_estimator.update(0, 0, torch.tensor(np.nan))
 
 
-def test_sampling_nan_error():
+def test_sampling_nan_error(DummyNaNModel):
     model = DummyNaNModel()
 
     # Create a simple dataset and dataloader
@@ -49,20 +48,7 @@ def test_sampling_nan_error():
         )
 
 
-@pytest.fixture
-def generated_linedot_normalcrossing_dataset():
-    torch.manual_seed(42)
-    np.random.seed(42)
-    sigma = 0.25
-    num_samples = 1000
-    x = torch.normal(0, 2, size=(num_samples,))
-    y = sigma * torch.normal(0, 1, size=(num_samples,))
-    train_data = TensorDataset(x, y)
-    train_dataloader = DataLoader(train_data, batch_size=num_samples, shuffle=True)
-    return train_dataloader, train_data, x, y
-
-
-def test_llc_nan_model(generated_linedot_normalcrossing_dataset):
+def test_llc_nan_model(generated_linedot_normalcrossing_dataset, Polynomial):
     seed = 42
     torch.manual_seed(seed)
     model = Polynomial([2, 2])
