@@ -1,7 +1,11 @@
+import json
+import os
+from typing import Any, Callable
+
+import numpy as np
 import pytest
 import torch
 import torch.nn as nn
-import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
 
 
@@ -33,18 +37,84 @@ def LinePlusDot():
     return _LPD
 
 
+def update_stored_models(model, m: int, h: int, n: int):
+    # Do this in a context manager to prevent write race conditions.
+    with open("shared/devinterp/tests/models.json", "r+") as f:
+        models = json.load(f)
+
+        models[f"{m}_{h}_{n}"] = {
+            "fc1": model.fc1.weight.detach().numpy().tolist(),
+            "fc2": model.fc2.weight.detach().numpy().tolist(),
+        }
+
+        f.seek(0)
+        json.dump(models, f)
+
+        f.truncate()
+
+    return models
+
+
 @pytest.fixture
-def ReducedRankRegressor():
+def ReducedRankRegressor(is_snapshot_update):
+    models = json.load(open("shared/devinterp/tests/models.json"))
+
     class _RRR(nn.Module):
         def __init__(self, m, h, n):
             super().__init__()
             self.fc1 = nn.Linear(m, h, bias=False)
             self.fc2 = nn.Linear(h, n, bias=False)
+            self.is_cached = False
+
+            key = f"{m}_{h}_{n}"
+
+            if key in models:
+                self.fc1.weight.data = torch.Tensor(models[key]["fc1"])
+                self.fc2.weight.data = torch.Tensor(models[key]["fc2"])
+                self.is_cached = True
 
         def forward(self, x):
             return self.fc2(self.fc1(x))
 
-    return _RRR
+        def perturb(self):
+            # Perturb the model by a large-enough amount
+            # that our tests should fail.
+            self.fc1.weight.data += torch.randn_like(self.fc1.weight.data)
+            self.fc2.weight.data += torch.randn_like(self.fc2.weight.data)
+
+    def maybe_train_model(m, h, n, x, y, criterion):
+        nonlocal models
+        # We'll retrain the model for every `--snapshot-update`.
+        if is_snapshot_update:
+            key = f"{m}_{h}_{n}"
+
+            # Delete the model from the cache if it exists.
+            if key in models:
+                del models[key]
+
+            _model = _RRR(m, h, n)
+            assert _model.is_cached == False
+
+            # Train the model.
+            optimizer = torch.optim.Adam(_model.parameters(), lr=0.01)
+            for _ in range(5000):
+                optimizer.zero_grad()
+                outputs = _model(x)
+                loss = criterion(outputs, y)
+                loss.backward()
+                optimizer.step()
+
+            # Cache the model
+            models = update_stored_models(_model, m, h, n)
+
+        # Always reload the model from cache so we have reproducible results
+        # between full/snapshot tests.
+        model = _RRR(m, h, n)
+        assert model.is_cached == True
+
+        return model
+
+    return maybe_train_model
 
 
 @pytest.fixture
@@ -79,7 +149,13 @@ def generated_normalcrossing_dataset():
     x = torch.normal(0, 2, size=(num_samples,))
     y = sigma * torch.normal(0, 1, size=(num_samples,))
     train_data = TensorDataset(x, y)
-    train_dataloader = DataLoader(train_data, batch_size=num_samples, shuffle=True)
+
+    # Add deterministic generator for DataLoader shuffling
+    generator = torch.Generator()
+    generator.manual_seed(42)
+    train_dataloader = DataLoader(
+        train_data, batch_size=num_samples, shuffle=True, generator=generator
+    )
     return train_dataloader, train_data, x, y
 
 
@@ -93,14 +169,21 @@ def generated_linedot_normalcrossing_dataset():
     x = torch.normal(0, 2, size=(num_samples,))
     y = sigma * torch.normal(0, 1, size=(num_samples,))
     train_data = TensorDataset(x, y)
-    train_dataloader = DataLoader(train_data, batch_size=num_samples, shuffle=True)
+
+    # Add deterministic generator for DataLoader shuffling
+    generator = torch.Generator()
+    generator.manual_seed(42)
+    train_dataloader = DataLoader(
+        train_data, batch_size=num_samples, shuffle=True, generator=generator
+    )
     return train_dataloader, train_data, x, y
 
 
-# --- LLCEstimator runner fixture ---
-from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
 from devinterp.slt.llc import LLCEstimator
 from devinterp.slt.sampler import sample as _sample
+
+# --- LLCEstimator runner fixture ---
+from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
 
 
 @pytest.fixture
@@ -152,6 +235,7 @@ def run_llc_estimator():
             sampling_method=sampling_method,
             num_chains=num_chains,
             num_draws=num_draws,
+            num_burnin_steps=0,
             callbacks=[estimator],
             verbose=False,
             seed=seed,
@@ -159,3 +243,9 @@ def run_llc_estimator():
         return estimator
 
     return _run
+
+
+# --- Snapshot fixture ---
+@pytest.fixture
+def is_snapshot_update(request):
+    return request.config.getoption("--snapshot-update")
