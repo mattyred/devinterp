@@ -40,3 +40,7 @@ dev = [
 [project.urls]
 "Homepage" = "https://github.com/timaeus-research/devinterp"
 "Bug Tracker" = "https://github.com/timaeus-research/devinterp/issues"
+
+[tool.pyright]
+venv = "../../.venv"
+venvPath = "."
