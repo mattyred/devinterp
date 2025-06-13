@@ -152,7 +152,7 @@ def sample_single_chain(
     loader = cycle(loader)
 
     model.train()
-    no_grad = not any(map(lambda pg: pg["nbeta"] > 0, optimizer.param_groups))
+    no_grad = not any(map(lambda pg: pg["nbeta"] >= 0, optimizer.param_groups))
 
     mark_step_if_xla(device)
 
