@@ -118,13 +118,13 @@ def estimate_learning_coeff_with_summary(
     # Temperature consistency warning
     if (
         "nbeta" in sampling_method_kwargs
-        and not "temperature" in sampling_method_kwargs
+        and "temperature" not in sampling_method_kwargs
     ):
         warnings.warn(
             "Using passed in nbeta. Make sure callbacks are also initialized with the same nbeta."
         )
     elif (
-        not "nbeta" in sampling_method_kwargs
+        "nbeta" not in sampling_method_kwargs
         and "temperature" in sampling_method_kwargs
     ):
         warnings.warn(
@@ -227,7 +227,9 @@ def estimate_learning_coeff(
     dtype: Optional[torch.dtype] = (
         torch.bfloat16
         if os.environ.get("BF16")
-        else torch.float16 if os.environ.get("FP16") else torch.float32
+        else torch.float16
+        if os.environ.get("FP16")
+        else torch.float32
     ),
 ) -> float:
     """

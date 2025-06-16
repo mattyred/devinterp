@@ -162,7 +162,6 @@ class SGLD(torch.optim.Optimizer):
 
         # Save the initial parameters if the localization term is set
         for group in self.param_groups:
-
             group["num_el"] = 0
 
             if group["localization"] != 0 or group["bounding_box_size"] != 0:

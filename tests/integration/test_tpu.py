@@ -1,4 +1,3 @@
-from numbers import Number
 from pprint import pp
 
 import numpy as np
@@ -15,9 +14,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 def _test_hf(model, dataset, device: str):
-    assert (
-        USE_TPU_BACKEND
-    ), "This test is intended to run using TPU, feel free to ignore failure if unavailable"
+    assert USE_TPU_BACKEND, (
+        "This test is intended to run using TPU, feel free to ignore failure if unavailable"
+    )
 
     set_seed(1)
 
@@ -130,13 +129,13 @@ def test_hf():
 
     for k, v in metrics_cpu.items():
         if isinstance(v, torch.Tensor):
-            assert torch.allclose(
-                v, metrics_tpu[k], rtol=3e-2
-            ), f"Evaluation failed for {k}"
+            assert torch.allclose(v, metrics_tpu[k], rtol=3e-2), (
+                f"Evaluation failed for {k}"
+            )
         elif isinstance(v, np.ndarray):
-            assert np.isclose(
-                v, metrics_tpu[k], rtol=3e-2
-            ).all(), f"Evaluation failed for {k}"
+            assert np.isclose(v, metrics_tpu[k], rtol=3e-2).all(), (
+                f"Evaluation failed for {k}"
+            )
         else:
             try:
                 is_close = np.isclose(v, metrics_tpu[k], rtol=3e-2)

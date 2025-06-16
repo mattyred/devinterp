@@ -1,11 +1,14 @@
 import json
-import os
-from typing import Any, Callable
 
 import numpy as np
 import pytest
 import torch
 import torch.nn as nn
+from devinterp.slt.llc import LLCEstimator
+from devinterp.slt.sampler import sample as _sample
+
+# --- LLCEstimator runner fixture ---
+from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
 from torch.utils.data import DataLoader, TensorDataset
 
 
@@ -93,7 +96,7 @@ def ReducedRankRegressor(is_snapshot_update):
                 del models[key]
 
             _model = _RRR(m, h, n)
-            assert _model.is_cached == False
+            assert not _model.is_cached
 
             # Train the model.
             optimizer = torch.optim.Adam(_model.parameters(), lr=0.01)
@@ -110,7 +113,7 @@ def ReducedRankRegressor(is_snapshot_update):
         # Always reload the model from cache so we have reproducible results
         # between full/snapshot tests.
         model = _RRR(m, h, n)
-        assert model.is_cached == True
+        assert model.is_cached
 
         return model
 
@@ -177,13 +180,6 @@ def generated_linedot_normalcrossing_dataset():
         train_data, batch_size=num_samples, shuffle=True, generator=generator
     )
     return train_dataloader, train_data, x, y
-
-
-from devinterp.slt.llc import LLCEstimator
-from devinterp.slt.sampler import sample as _sample
-
-# --- LLCEstimator runner fixture ---
-from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
 
 
 @pytest.fixture

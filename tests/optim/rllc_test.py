@@ -6,8 +6,6 @@ Found by adding a feature to throw an error when nan loss values are encountered
 import numpy as np
 import pytest
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import platform
 from devinterp.optim.sgld import SGLD
 from devinterp.optim.sgmcmc import SGMCMC
@@ -542,9 +540,9 @@ def _test_restricted_gradient_accuracy(
         f"for powers {relevant_powers + [extra_dim_power]} using {sampling_method}, "
         f"{model2.weights}"
     )
-    assert np.isclose(
-        llc_mean_2d, llc_mean_3d_restricted, atol=TOLERANCE_ATOL
-    ), error_msg
+    assert np.isclose(llc_mean_2d, llc_mean_3d_restricted, atol=TOLERANCE_ATOL), (
+        error_msg
+    )
 
 
 def _test_full_accuracy(
@@ -565,9 +563,9 @@ def _test_full_accuracy(
         f"for powers {relevant_powers + [extra_dim_power]} using {sampling_method}, "
         f"{model2.weights}"
     )
-    assert np.isclose(
-        llc_mean_2d, llc_mean_3d_restricted, atol=TOLERANCE_ATOL_FULL
-    ), error_msg
+    assert np.isclose(llc_mean_2d, llc_mean_3d_restricted, atol=TOLERANCE_ATOL_FULL), (
+        error_msg
+    )
 
 
 def _test_difference_accuracy(
@@ -581,6 +579,6 @@ def _test_difference_accuracy(
         f"LLC {llc_mean:.3f} too close to RLLC {rllc_mean:.3f} "
         f"for powers {relevant_powers} using {sampling_method}"
     )
-    assert not np.isclose(
-        llc_mean, rllc_mean, atol=TOLERANCE_ATOL_DIFFERENCE
-    ), error_msg
+    assert not np.isclose(llc_mean, rllc_mean, atol=TOLERANCE_ATOL_DIFFERENCE), (
+        error_msg
+    )

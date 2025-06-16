@@ -44,14 +44,16 @@ def sample_single_chain(
     dtype: torch.dtype = (
         torch.bfloat16
         if os.environ.get("BF16")
-        else torch.float16 if os.environ.get("FP16") else torch.float32
+        else torch.float16
+        if os.environ.get("FP16")
+        else torch.float32
     ),
     **kwargs,
 ):
     if gradient_accumulation_steps > 1:
-        assert isinstance(
-            gradient_accumulation_steps, int
-        ), "gradient_accumulation_steps must be an integer."
+        assert isinstance(gradient_accumulation_steps, int), (
+            "gradient_accumulation_steps must be an integer."
+        )
         num_steps_bw_draws *= gradient_accumulation_steps
         num_burnin_steps *= gradient_accumulation_steps
 
@@ -64,9 +66,9 @@ def sample_single_chain(
     model = deepcopy(ref_model).to(device)
 
     if "temperature" in sampling_method_kwargs:
-        assert (
-            not "nbeta" in sampling_method_kwargs
-        ), "Set either nbeta or temperature in sampling_method_kwargs, not both"
+        assert "nbeta" not in sampling_method_kwargs, (
+            "Set either nbeta or temperature in sampling_method_kwargs, not both"
+        )
         sampling_method_kwargs["nbeta"] = sampling_method_kwargs.pop("temperature")
 
     assert "nbeta" in sampling_method_kwargs, "Set nbeta in sampling_method_kwargs"
@@ -198,7 +200,9 @@ def sample(
     dtype: torch.dtype = (
         torch.bfloat16
         if os.environ.get("BF16")
-        else torch.float16 if os.environ.get("FP16") else torch.float32
+        else torch.float16
+        if os.environ.get("FP16")
+        else torch.float32
     ),
     **kwargs,
 ):
@@ -291,7 +295,9 @@ def sample(
             assert not any(
                 getattr(callback, "temperature", None) is not None
                 for callback in callbacks
-            ), "If you're setting nbeta in sampling_method_kwargs, don't set temperature in the callbacks."
+            ), (
+                "If you're setting nbeta in sampling_method_kwargs, don't set temperature in the callbacks."
+            )
         if "temperature" in sampling_method_kwargs:
             assert not any(
                 (
@@ -299,7 +305,9 @@ def sample(
                     and getattr(callback, "temperature") is None
                 )
                 for callback in callbacks
-            ), "If you're setting temperature in sampling_method_kwargs, don't set nbeta in the callbacks."
+            ), (
+                "If you're setting temperature in sampling_method_kwargs, don't set nbeta in the callbacks."
+            )
         warnings.warn(
             "If you're setting a nbeta or temperature in sampling_method_kwargs, please also make sure to set it in the callbacks."
         )
@@ -312,13 +320,13 @@ def sample(
 
     if device.type == "cuda":
         if gpu_idxs is not None:
-            assert cores >= len(
-                gpu_idxs
-            ), "Number of cores must be greater than number of devices."
+            assert cores >= len(gpu_idxs), (
+                "Number of cores must be greater than number of devices."
+            )
     else:
-        assert (
-            gpu_idxs is None
-        ), "Multi-GPU sampling is only supported for CUDA devices. Check your device parameter."
+        assert gpu_idxs is None, (
+            "Multi-GPU sampling is only supported for CUDA devices. Check your device parameter."
+        )
 
     if seed is not None:
         warnings.warn(

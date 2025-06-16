@@ -65,13 +65,13 @@ def test_pass_in_temperature(
     temp_llc_estimator = temp_llc_estimator.get_results()
     for k, v in nbeta_llc_estimator.items():
         if isinstance(v, torch.Tensor):
-            assert torch.allequal(
-                v, temp_llc_estimator[k]
-            ), f"Evaluation failed for {k}"
+            assert torch.allequal(v, temp_llc_estimator[k]), (
+                f"Evaluation failed for {k}"
+            )
         elif isinstance(v, np.ndarray):
-            assert np.equal(
-                v, temp_llc_estimator[k]
-            ).all(), f"Evaluation failed for {k}"
+            assert np.equal(v, temp_llc_estimator[k]).all(), (
+                f"Evaluation failed for {k}"
+            )
         else:
             assert np.equal(v, temp_llc_estimator[k]), f"Evaluation failed for {k}"
 
@@ -111,7 +111,6 @@ def test_dont_allow_both_temp_and_nbeta(
             verbose=False,
         )
     with pytest.raises(AssertionError):
-
         llc_estimator = estimator(
             num_chains=num_chains,
             num_draws=num_draws,
@@ -136,8 +135,7 @@ def test_dont_allow_both_temp_and_nbeta(
 
 def test_warn_on_default_nbeta():
     with mock.patch("devinterp.utils.warnings") as mock_warn:
-
-        nbeta = default_nbeta(
+        _ = default_nbeta(
             DataLoader(TensorDataset(torch.randn(100, 10)), batch_size=1),
             gradient_accumulation_steps=1,
         )
@@ -146,8 +144,7 @@ def test_warn_on_default_nbeta():
             "default nbeta is undefined for batch_size * gradient_accumulation_steps == 1, falling back to default value of 1"
         )
     with mock.patch("devinterp.utils.warnings") as mock_warn:
-
-        nbeta = default_nbeta(1, gradient_accumulation_steps=1)
+        _ = default_nbeta(1, gradient_accumulation_steps=1)
 
         # Check that a warning was issued
         mock_warn.warn.assert_called_with(

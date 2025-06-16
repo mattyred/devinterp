@@ -2,13 +2,11 @@ import numpy as np
 import pytest
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import platform
 from devinterp.optim import SGLD, SGMCMC
 from devinterp.slt.llc import LLCEstimator
 from devinterp.slt.sampler import sample
 from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
-from torch.utils.data import DataLoader, TensorDataset
 
 # Test configuration constants
 SNAPSHOT_DRAWS = 5
@@ -85,9 +83,9 @@ def _test_ordinality_accuracy(
         num_draws=FULL_SAMPLING_DRAWS,
     )
 
-    assert (
-        np.diff(llcs) >= 0
-    ).all(), f"Ordinality not preserved for sampler {sampling_method} on {dim}-d {model_name}: llcs {llcs} are not in ascending order."
+    assert (np.diff(llcs) >= 0).all(), (
+        f"Ordinality not preserved for sampler {sampling_method} on {dim}-d {model_name}: llcs {llcs} are not in ascending order."
+    )
 
 
 @pytest.mark.skipif(

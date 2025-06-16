@@ -65,7 +65,7 @@ class GradientDistribution(SamplerCallback):
                 continue
             if param.grad is None:
                 raise ValueError(
-                    f"GradientDistribution callback requires gradients to be computed first"
+                    "GradientDistribution callback requires gradients to be computed first"
                 )
             self._update_param_bins(
                 chain, draw, param_name, param.grad.detach().flatten()

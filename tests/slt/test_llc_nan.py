@@ -6,7 +6,6 @@ from devinterp.optim.sgld import SGLD
 from devinterp.slt.llc import LLCEstimator, OnlineLLCEstimator
 from devinterp.slt.sampler import estimate_learning_coeff, sample
 from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
-from torch.utils.data import DataLoader, TensorDataset
 
 
 def test_llc_estimator_nan_error():
@@ -56,7 +55,6 @@ def test_llc_nan_model(generated_linedot_normalcrossing_dataset, Polynomial):
     train_dataloader, _, _, _ = generated_linedot_normalcrossing_dataset
     num_chains = 1
     num_draws = 1_000
-    llcs = []
     sample_point = [[0.0 for _ in range(2)]]
     model.weights = nn.Parameter(
         torch.tensor(sample_point, dtype=torch.float32, requires_grad=True)

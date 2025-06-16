@@ -54,9 +54,9 @@ class SweepConfig:
         dataloader=None,
     ):
         if epsilon_range is not None:
-            assert isinstance(
-                epsilon_range, Sequence
-            ), "epsilon_range must be a list-like object (e.g list or numpy array)"
+            assert isinstance(epsilon_range, Sequence), (
+                "epsilon_range must be a list-like object (e.g list or numpy array)"
+            )
             if min_epsilon is not None or max_epsilon is not None:
                 warnings.warn(
                     "min_epsilon and max_epsilon will be ignored as epsilon_range is provided"
@@ -70,9 +70,9 @@ class SweepConfig:
             )
 
         if beta_range is not None:
-            assert isinstance(
-                beta_range, Sequence
-            ), "beta_range must be a list-like object (e.g list or numpy array)"
+            assert isinstance(beta_range, Sequence), (
+                "beta_range must be a list-like object (e.g list or numpy array)"
+            )
             if min_beta is not None or max_beta is not None:
                 warnings.warn(
                     "min_beta and max_beta will be ignored as beta_range is provided"
@@ -180,9 +180,9 @@ class EpsilonBetaAnalyzer:
         :param add_to_existing: If True, adds new sweep results to existing ones. If False, replaces existing results.
             Useful for sweeping over multiple models or datasets.
         """
-        assert (
-            self.sweep_config is not None
-        ), "Sweep configuration is not set. Please call configure_sweep() first."
+        assert self.sweep_config is not None, (
+            "Sweep configuration is not set. Please call configure_sweep() first."
+        )
 
         epsilon_range = self.sweep_config.epsilon_range
         beta_range = self.sweep_config.beta_range
@@ -273,9 +273,9 @@ class EpsilonBetaAnalyzer:
                 "log_z": True,
             }
 
-        assert (
-            self.sweep_df is not None
-        ), "No data to plot. Please call get_results() first."
+        assert self.sweep_df is not None, (
+            "No data to plot. Please call get_results() first."
+        )
 
         sweep_df = self.sweep_df.copy()
         # Calculate additional statistics
@@ -417,12 +417,12 @@ class EpsilonBetaAnalyzer:
                 )
 
                 if slider_plane:
-                    step["args"][0]["visible"][
-                        2 * i
-                    ] = True  # Toggle i'th scatter trace to "visible"
-                    step["args"][0]["visible"][
-                        2 * i + 1
-                    ] = True  # Toggle i'th plane trace to "visible"
+                    step["args"][0]["visible"][2 * i] = (
+                        True  # Toggle i'th scatter trace to "visible"
+                    )
+                    step["args"][0]["visible"][2 * i + 1] = (
+                        True  # Toggle i'th plane trace to "visible"
+                    )
                 else:
                     step["args"][0]["visible"][i] = True
                 steps.append(step)

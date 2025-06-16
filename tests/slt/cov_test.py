@@ -243,9 +243,9 @@ def test_within_head_covariance(dummy_transformer):
 
             mse += local_mse / (num_heads * 2)
 
-    assert (
-        mse < 3
-    ), f"MSE: {mse}"  # Visually this looks good, but the MSE is a bit high.
+    assert mse < 3, (
+        f"MSE: {mse}"
+    )  # Visually this looks good, but the MSE is a bit high.
 
 
 def test_between_layer_covariance_within_heads(dummy_transformer):
@@ -312,4 +312,4 @@ def test_between_layer_covariance_within_heads(dummy_transformer):
     # Extract submatrices for each layer and head, and validate
     for l in range(2):
         for h in range(num_heads):
-            assert np.allclose(cov1[l, h], cov2[f"l{l+1}h{h+1}"])
+            assert np.allclose(cov1[l, h], cov2[f"l{l + 1}h{h + 1}"])

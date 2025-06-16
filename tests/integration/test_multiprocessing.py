@@ -15,9 +15,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def _test_hf(model, dataset, device: str, batch_size=8, seed=42, cores=1):
     assert not USE_TPU_BACKEND, "TPU backend not supported for this test"
-    assert device in ["cpu"] or device.startswith(
-        "cuda"
-    ), "Invalid device. Should be cpu or cuda:n. Don't worry about this error if you're not on a GPU device."
+    assert device in ["cpu"] or device.startswith("cuda"), (
+        "Invalid device. Should be cpu or cuda:n. Don't worry about this error if you're not on a GPU device."
+    )
     set_seed(seed)
 
     from devinterp.backends.default.slt.sampler import sample
@@ -117,12 +117,12 @@ def inactive_test_hf():
     pp(metrics_mp)
     for k, v in metrics_cpu.items():
         if isinstance(v, torch.Tensor):
-            assert torch.allclose(
-                v, metrics_mp[k], rtol=1e-2
-            ), f"Evaluation failed for {k}"
+            assert torch.allclose(v, metrics_mp[k], rtol=1e-2), (
+                f"Evaluation failed for {k}"
+            )
         elif isinstance(v, np.ndarray):
-            assert np.isclose(
-                v, metrics_mp[k], rtol=1e-2
-            ).all(), f"Evaluation failed for {k}"
+            assert np.isclose(v, metrics_mp[k], rtol=1e-2).all(), (
+                f"Evaluation failed for {k}"
+            )
         else:
             assert np.isclose(v, metrics_mp[k], rtol=1e-2), f"Evaluation failed for {k}"

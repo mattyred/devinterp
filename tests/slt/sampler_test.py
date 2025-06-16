@@ -1,13 +1,12 @@
 import numpy as np
 import pytest
 import torch
-import torch.nn.functional as F
 from devinterp.optim import SGLD, SGMCMC
 from devinterp.optim.sgnht import SGNHT
 from devinterp.slt.llc import LLCEstimator
 from devinterp.slt.sampler import sample
 from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 
 
 @pytest.mark.parametrize("sampling_method", [SGLD, SGNHT, SGMCMC.sgld])
@@ -66,9 +65,9 @@ def test_seeding(generated_normalcrossing_dataset, sampling_method, Polynomial):
     )
     llc_mean_1 = llc_estimator_1.get_results()["llc/mean"]
     llc_mean_2 = llc_estimator_2.get_results()["llc/mean"]
-    assert np.array_equal(
-        llc_mean_1, llc_mean_2
-    ), f"LLC mean {llc_mean_1:.8f}!={llc_mean_2:.8f} for same seed for sampler {SGLD}!"
+    assert np.array_equal(llc_mean_1, llc_mean_2), (
+        f"LLC mean {llc_mean_1:.8f}!={llc_mean_2:.8f} for same seed for sampler {SGLD}!"
+    )
 
 
 # @pytest.mark.parametrize("batch_sizes", [[1, 10, 100, 1000]])
@@ -78,14 +77,12 @@ def unused_test_batch_size_convergence(
     generated_normalcrossing_dataset, batch_sizes, sampling_method, model
 ):
     model = model([2, 2])
-    criterion = F.mse_loss
     lr = 0.0002
     num_chains = 1
     means = []
     stds = []
     _, train_data, _, _ = generated_normalcrossing_dataset
     for batch_size in batch_sizes:
-
         num_draws = 5_000
         torch.manual_seed(42)
         train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
@@ -113,6 +110,6 @@ def unused_test_batch_size_convergence(
         stds += [llc_estimator.get_results()["llc/std"]]
     overall_mean = np.mean(means)
     std_dev_of_means = np.std(means)
-    assert (
-        False
-    ), f"mean {overall_mean}, std_dev_of_means {std_dev_of_means}, {means}, {stds}"
+    assert False, (
+        f"mean {overall_mean}, std_dev_of_means {std_dev_of_means}, {means}, {stds}"
+    )

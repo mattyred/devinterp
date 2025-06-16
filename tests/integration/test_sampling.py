@@ -1,4 +1,3 @@
-import time
 import warnings
 
 import numpy as np
@@ -7,7 +6,6 @@ import torch
 from datasets import load_dataset
 from devinterp.optim import SGLD
 from devinterp.slt.sampler import estimate_learning_coeff_with_summary
-from devinterp.utils import USE_TPU_BACKEND, plot_trace
 from torch.nn import functional as F
 from transformers import AutoModelForImageClassification
 
@@ -108,18 +106,18 @@ def check(s1, s2, atol=1e-3, reverse=False):
     Check if two stats are close to each other.
 
     """
-    assert (
-        s1.keys() == s2.keys()
-    ), f"Expected the same keys in both stats, got {s1.keys()} and {s2.keys()}."
-    assert (
-        s1["llc/trace"].shape == s2["llc/trace"].shape
-    ), f"Expected the same shape for llc/trace, got {s1['llc/trace'].shape} and {s2['llc/trace'].shape}."
+    assert s1.keys() == s2.keys(), (
+        f"Expected the same keys in both stats, got {s1.keys()} and {s2.keys()}."
+    )
+    assert s1["llc/trace"].shape == s2["llc/trace"].shape, (
+        f"Expected the same shape for llc/trace, got {s1['llc/trace'].shape} and {s2['llc/trace'].shape}."
+    )
     valid = np.allclose(s1["llc/trace"], s2["llc/trace"], atol=atol)
     if reverse:
         valid = not valid
-    assert (
-        valid
-    ), f"Expected {'different' if reverse else 'close'} llc/trace in both stats, got {s1['llc/trace']} and {s2['llc/trace']}, {np.isclose(s1['llc/trace'], s2['llc/trace'], atol=atol)}."
+    assert valid, (
+        f"Expected {'different' if reverse else 'close'} llc/trace in both stats, got {s1['llc/trace']} and {s2['llc/trace']}, {np.isclose(s1['llc/trace'], s2['llc/trace'], atol=atol)}."
+    )
 
 
 @pytest.fixture(scope="module")

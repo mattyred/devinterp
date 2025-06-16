@@ -271,18 +271,18 @@ def test_optimize_over(
         for p1, p2, mask in zip(
             original_params, model2.parameters(), optimize_over_params
         ):
-            assert torch.allclose(
-                p1[~mask], p2[~mask], atol=1e-5
-            ), f"Masked parameters differ: {p1} vs {p2} for mask {mask}"
+            assert torch.allclose(p1[~mask], p2[~mask], atol=1e-5), (
+                f"Masked parameters differ: {p1} vs {p2} for mask {mask}"
+            )
 
     elif optimize_over == "scalar":
         for p1, p2, mask in zip(
             original_params, model2.parameters(), optimize_over_params
         ):
             if not mask:
-                assert torch.allclose(
-                    p1, p2, atol=1e-5
-                ), f"Masked parameters differ: {p1} vs {p2}"
+                assert torch.allclose(p1, p2, atol=1e-5), (
+                    f"Masked parameters differ: {p1} vs {p2}"
+                )
 
     # Compare parameters
     for p1, p2 in zip(model1.parameters(), model2.parameters()):
@@ -391,9 +391,9 @@ def test_SGMCMC_bounding_box(snapshot):
     # Check that all parameters stay within the bounding box
     for p in model.parameters():
         initial_param = optimizer.state[p]["initial_param"]
-        assert torch.all(
-            torch.abs(p.data - initial_param) <= box_size + 1e-6
-        ), f"Parameter exceeded bounding box: diff={torch.abs(p.data - initial_param).max()}, box_size={box_size}"
+        assert torch.all(torch.abs(p.data - initial_param) <= box_size + 1e-6), (
+            f"Parameter exceeded bounding box: diff={torch.abs(p.data - initial_param).max()}, box_size={box_size}"
+        )
 
     state = {
         "model": serialize_model_state(model),
@@ -518,15 +518,15 @@ def test_SGMCMC_vs_SGLD_param_groups(lr_ratio, noise_ratio, snapshot):
     # Check hyperparameters in groups
     for g1, g2 in zip(optimizer_sgld.param_groups, optimizer_sgmcmc.param_groups):
         assert g1["lr"] == g2["lr"], f"LRs differ: {g1['lr']} vs {g2['lr']}"
-        assert (
-            g1["noise_level"] == g2["noise_level"]
-        ), f"Noise levels differ: {g1['noise_level']} vs {g2['noise_level']}"
-        assert (
-            g1["nbeta"] == g2["nbeta"]
-        ), f"nbeta differ: {g1['nbeta']} vs {g2['nbeta']}"
-        assert (
-            g1["localization"] == g2["localization"]
-        ), f"Localizations differ: {g1['localization']} vs {g2['localization']}"
+        assert g1["noise_level"] == g2["noise_level"], (
+            f"Noise levels differ: {g1['noise_level']} vs {g2['noise_level']}"
+        )
+        assert g1["nbeta"] == g2["nbeta"], (
+            f"nbeta differ: {g1['nbeta']} vs {g2['nbeta']}"
+        )
+        assert g1["localization"] == g2["localization"], (
+            f"Localizations differ: {g1['localization']} vs {g2['localization']}"
+        )
 
     data, target, criterion = create_task()
 
@@ -560,9 +560,9 @@ def test_SGMCMC_vs_SGLD_param_groups(lr_ratio, noise_ratio, snapshot):
                     assert a.shape == b.shape, "DWS tensors differ in shape"
                     assert torch.allclose(a, b, atol=1e-4), "DWS metrics differ"
             else:
-                assert torch.allclose(
-                    g2["metrics"][metric], g1[metric], atol=1e-2
-                ), f"Metric {metric} differs"
+                assert torch.allclose(g2["metrics"][metric], g1[metric], atol=1e-2), (
+                    f"Metric {metric} differs"
+                )
 
     state = {
         "optimizer_sgld": serialize_metrics(optimizer_sgld),

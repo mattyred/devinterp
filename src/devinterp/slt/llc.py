@@ -45,9 +45,9 @@ class LLCEstimator(SamplerCallback):
         )
         self.init_loss = init_loss
 
-        assert (
-            nbeta is not None or temperature is not None
-        ), "Please provide a value for nbeta."
+        assert nbeta is not None or temperature is not None, (
+            "Please provide a value for nbeta."
+        )
         if nbeta is None and temperature is not None:
             nbeta = temperature
             warnings.warn("Temperature is deprecated. Please use nbeta instead.")
@@ -94,7 +94,9 @@ class LLCEstimator(SamplerCallback):
 
             else:
                 raise NotImplementedError(f"TPU type {TPU_TYPE} not supported")
-        elif str(self.device).startswith(
+        elif str(
+            self.device
+        ).startswith(
             "cuda"
         ):  # if we've ran on multi-GPU, we should do a reduce as well. see above for how this would work
             try:
@@ -187,9 +189,9 @@ class OnlineLLCEstimator(SamplerCallback):
 
         self.losses = torch.zeros((num_chains, num_draws)).to(device)
         self.llcs = torch.zeros((num_chains, num_draws)).to(device)
-        assert (
-            nbeta is not None or temperature is not None
-        ), "Please provide a value for nbeta."
+        assert nbeta is not None or temperature is not None, (
+            "Please provide a value for nbeta."
+        )
         if nbeta is None and temperature is not None:
             nbeta = temperature
             warnings.warn("Temperature is deprecated. Please use nbeta instead.")

@@ -1,4 +1,3 @@
-from collections import defaultdict
 from copy import deepcopy
 
 import pytest
@@ -98,13 +97,13 @@ def test_SGLD_metrics_tracking(snapshot, sampler_cls):
     optimizer.step()
 
     # Check scalar metrics
-    assert isinstance(
-        optimizer.noise_norm, torch.Tensor
-    ), "noise_norm should be a tensor"
+    assert isinstance(optimizer.noise_norm, torch.Tensor), (
+        "noise_norm should be a tensor"
+    )
     assert isinstance(optimizer.grad_norm, torch.Tensor), "grad_norm should be a tensor"
-    assert isinstance(
-        optimizer.weight_norm, torch.Tensor
-    ), "weight_norm should be a tensor"
+    assert isinstance(optimizer.weight_norm, torch.Tensor), (
+        "weight_norm should be a tensor"
+    )
     assert isinstance(optimizer.distance, torch.Tensor), "distance should be a tensor"
 
     # Check list-based metrics

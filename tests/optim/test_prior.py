@@ -1,4 +1,3 @@
-import pytest
 import torch
 from devinterp.optim.prior import CompositePrior, GaussianPrior, UniformPrior
 

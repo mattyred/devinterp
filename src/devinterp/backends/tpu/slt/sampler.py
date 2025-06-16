@@ -55,7 +55,9 @@ def sample_single_chain(
     dtype: Optional[torch.dtype] = (
         torch.bfloat16
         if os.environ.get("BF16")
-        else torch.float16 if os.environ.get("FP16") else torch.float32
+        else torch.float16
+        if os.environ.get("FP16")
+        else torch.float32
     ),
     **kwargs,
 ):
@@ -80,7 +82,9 @@ def sample_single_chain(
             assert not any(
                 getattr(callback, "temperature", None) is not None
                 for callback in callbacks
-            ), "If you're setting nbeta in sampling_method_kwargs, don't set temperature in the callbacks."
+            ), (
+                "If you're setting nbeta in sampling_method_kwargs, don't set temperature in the callbacks."
+            )
         if "temperature" in sampling_method_kwargs:
             assert not any(
                 (
@@ -88,7 +92,9 @@ def sample_single_chain(
                     and getattr(callback, "temperature") is None
                 )
                 for callback in callbacks
-            ), "If you're setting temperature in sampling_method_kwargs, don't set nbeta in the callbacks."
+            ), (
+                "If you're setting temperature in sampling_method_kwargs, don't set nbeta in the callbacks."
+            )
         warnings.warn(
             "If you're setting a nbeta or temperature in sampling_method_kwargs, please also make sure to set it in the callbacks."
         )
@@ -303,7 +309,9 @@ def sample(
     dtype: Optional[torch.dtype] = (
         torch.bfloat16
         if os.environ.get("BF16")
-        else torch.float16 if os.environ.get("FP16") else torch.float32
+        else torch.float16
+        if os.environ.get("FP16")
+        else torch.float32
     ),
     **kwargs,  # NOTE: This is an important catch-all for any additional arguments that may be passed to the function. Please don't remove it.
 ):
