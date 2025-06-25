@@ -296,7 +296,6 @@ class BetweenLayerCovarianceAccumulator:
         self.num_draws += 1
 
     def finalize(self):
-
         for name in self.accessors:
             self.first_moments[name] /= self.num_draws
 

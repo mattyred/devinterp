@@ -1,6 +1,5 @@
 import warnings
-from collections import defaultdict
-from typing import DefaultDict, Dict, Iterable, Iterator, List, Literal, Optional, Union
+from typing import Dict, Iterable, Iterator, List, Literal, Optional, Union
 
 import torch
 from devinterp.optim.preconditioner import (
@@ -141,7 +140,6 @@ class SGMCMC(Optimizer):
         prior: Optional[
             Union[Prior, Literal["initial"], Iterable[torch.Tensor], float]
         ] = None,
-        prior_kwargs: Optional[Dict] = None,
         localization: Optional[float] = None,
         preconditioner: Optional[
             Union[Preconditioner, Literal["identity", "rmsprop"]]
@@ -168,7 +166,6 @@ class SGMCMC(Optimizer):
             nbeta=nbeta,
             weight_decay=weight_decay,
             prior=prior,
-            prior_kwargs=prior_kwargs or {},
             localization=localization,
             preconditioner=preconditioner,
             preconditioner_kwargs=preconditioner_kwargs or {},
@@ -227,7 +224,7 @@ class SGMCMC(Optimizer):
 
         # Initialize prior
         prior = group["prior"]
-        prior_kwargs = group.pop("prior_kwargs")
+        prior_kwargs = group.pop("prior_kwargs", {})
         localization = group.get("localization", prior_kwargs.get("localization", 0.0))
 
         if prior is not None or localization:
@@ -316,10 +313,10 @@ class SGMCMC(Optimizer):
                 else:  # List metrics (noise, dws)
                     value.clear()
 
-    def zero_grad(self):
+    def zero_grad(self, *args, **kwargs):
         """Zero out gradients"""
         self.reset_metrics()
-        super().zero_grad()
+        super().zero_grad(*args, **kwargs)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -354,7 +351,7 @@ class SGMCMC(Optimizer):
                 # Gradient computation
                 d_p = preconditioning.grad_coef * p.grad.mul(group["nbeta"])
 
-                # Prior gradient contribution
+                # Prior contribution
                 if prior is not None:
                     prior_grad = prior.grad(p.data, state)
                     d_p.add_(preconditioning.prior_coef * prior_grad)
@@ -373,6 +370,9 @@ class SGMCMC(Optimizer):
                 # ):
                 #     continue
 
+                d_p = preconditioning.overall_coef * d_p
+                p.data.add_(d_p, alpha=-0.5 * group["lr"])
+
                 # Noise addition
                 noise = torch.normal(
                     mean=0.0,
@@ -380,20 +380,16 @@ class SGMCMC(Optimizer):
                     size=d_p.size(),
                     device=d_p.device,
                 )
-
-                # Apply weight decay separately from other updates
-                if group["weight_decay"] != 0:
-                    d_p.add_(group["weight_decay"] * p.data)
-
-                d_p = preconditioning.overall_coef * d_p
                 noise = preconditioning.overall_coef * noise
 
                 # Parameter updates
-                p.data.add_(d_p, alpha=-0.5 * group["lr"])
                 p.data.add_(
                     preconditioning.noise_coef * noise,
                     alpha=group["lr"] ** 0.5,
                 )
+                # Apply weight decay separately from other updates
+                if group["weight_decay"] != 0:
+                    d_p.add_(group["weight_decay"] * p.data)
 
                 # Bounding box enforcement
                 if group["bounding_box_size"] is not None:
@@ -436,8 +432,20 @@ class SGMCMC(Optimizer):
                 metrics[metric] = torch.sqrt(metrics[metric])
 
             if "localization_loss" in metrics and group["prior"] is not None:
+                localization = 0.0
+                if (
+                    isinstance(group["prior"], GaussianPrior)
+                    and group["prior"].center is not None
+                ):
+                    localization = group["prior"].localization
+                elif (
+                    isinstance(group["prior"], CompositePrior)
+                    and isinstance(group["prior"].priors[-1], GaussianPrior)
+                    and group["prior"].priors[-1].center is not None
+                ):
+                    localization = group["prior"].priors[-1].localization
                 metrics["localization_loss"] = (
-                    metrics["distance"] ** 2 * (group["prior"].localization) / 2
+                    metrics["distance"] ** 2 * localization / 2
                 )
 
         return loss
@@ -460,6 +468,7 @@ class SGMCMC(Optimizer):
         bounding_box_size=None,
         optimize_over=None,
         metrics: Optional[List[OptimizerMetric]] = None,
+        prior_kwargs: Optional[Dict] = None,
     ):
         """Factory method to create an SGMCMC instance that implements Stochastic Gradient Langevin Dynamics (SGLD)
         with a localization term (Lau et al. 2023).
@@ -502,6 +511,7 @@ class SGMCMC(Optimizer):
         :param bounding_box_size: Size of bounding box around initial parameters (default: None)
         :param optimize_over: Boolean mask for restricting updatable parameters (default: None)
         :param metrics: List of metrics to track during training (default: None)
+        :param prior_kwargs: Additional keyword arguments for prior initialization.
         :return: SGMCMC optimizer instance
         """
         if noise_level != 1.0:
@@ -512,21 +522,22 @@ class SGMCMC(Optimizer):
             warnings.warn(
                 "nbeta set to 1, LLC estimates will be off unless you know what you're doing. Use utils.default_nbeta(dataloader) instead"
             )
-
-        # if isinstance(params, list) and all(isinstance(p, dict) for p in params):
-        #     raise ValueError(
-        #         "params should be an iterator of parameters, not param_groups"
-        #     )
-
+        if prior_kwargs is None:
+            prior_kwargs = {}
         # Updated prior initialization to handle both weight decay and localization
         priors = []
         if weight_decay > 0:
-            priors.append(GaussianPrior(localization=weight_decay, center=None))
-
-        priors.append(GaussianPrior(localization=localization, center="initial"))
+            priors.append(
+                GaussianPrior(localization=weight_decay, center=None, **prior_kwargs)
+            )
+        if localization > 0:
+            priors.append(
+                GaussianPrior(
+                    localization=localization, center="initial", **prior_kwargs
+                )
+            )
 
         prior = CompositePrior(priors)
-        prior_kwargs = {}
 
         instance = cls(
             params,
@@ -534,7 +545,6 @@ class SGMCMC(Optimizer):
             noise_level=noise_level,
             nbeta=nbeta,
             prior=prior,
-            prior_kwargs=prior_kwargs,
             bounding_box_size=bounding_box_size,
             optimize_over=optimize_over,
             metrics=metrics,
@@ -551,6 +561,7 @@ class SGMCMC(Optimizer):
         nbeta=1.0,
         bounding_box_size=None,
         metrics: Optional[List[OptimizerMetric]] = None,
+        prior_kwargs: Optional[Dict] = None,
     ):
         """Factory method to create an SGMCMC instance that matches SGNHT's interface.
 
@@ -562,13 +573,15 @@ class SGMCMC(Optimizer):
         :param nbeta: Inverse temperature (default: 1.0)
         :param bounding_box_size: Size of bounding box around initial parameters (default: None)
         :param metrics: List of metrics to track during training (default: None)
+        :param prior_kwargs: Additional keyword arguments for prior initialization.
         :return: SGMCMC optimizer instance
         """
         if nbeta == 1.0:
             warnings.warn(
                 "nbeta set to 1, LLC estimates will be off unless you know what you're doing. Use utils.default_nbeta(dataloader) instead"
             )
-
+        if prior_kwargs is None:
+            prior_kwargs = {}
         # Create NHT preconditioner
         preconditioner = NHTPreconditioning(diffusion_factor=diffusion_factor)
 
@@ -599,6 +612,7 @@ class SGMCMC(Optimizer):
         bounding_box_size=None,
         optimize_over=None,
         metrics: Optional[List[OptimizerMetric]] = None,
+        prior_kwargs: Optional[Dict] = None,
     ):
         """Factory method to create an SGMCMC instance that wraps RMSprop's adaptive preconditioning with SGLD to perform Bayesian
         sampling of neural network weights.
@@ -643,6 +657,7 @@ class SGMCMC(Optimizer):
         :param bounding_box_size: Size of bounding box around initial parameters (default: None)
         :param optimize_over: Boolean mask for restricting updatable parameters (default: None)
         :param metrics: List of metrics to track during training (default: None)
+        :param prior_kwargs: Additional keyword arguments for prior initialization.
         :return: SGMCMC optimizer instance
         """
         if noise_level != 1.0:
@@ -653,22 +668,24 @@ class SGMCMC(Optimizer):
             warnings.warn(
                 "nbeta set to 1, LLC estimates will be off unless you know what you're doing. Use utils.default_nbeta(dataloader) instead"
             )
-
-        # if isinstance(params, list) and all(isinstance(p, dict) for p in params):
-        #     raise ValueError(
-        #         "params should be an iterator of parameters, not param_groups"
-        #     )
+        if prior_kwargs is None:
+            prior_kwargs = {}
 
         # Updated prior initialization to handle both weight decay and localization
         priors = []
         prior = None
         if weight_decay > 0:
-            priors.append(GaussianPrior(localization=weight_decay, center=None))
-
-        priors.append(GaussianPrior(localization=localization, center="initial"))
+            priors.append(
+                GaussianPrior(localization=weight_decay, center=None, **prior_kwargs)
+            )
+        if localization > 0:
+            priors.append(
+                GaussianPrior(
+                    localization=localization, center="initial", **prior_kwargs
+                )
+            )
 
         prior = CompositePrior(priors)
-        prior_kwargs = {}
 
         # Configure RMSprop preconditioner
         preconditioner_kwargs = {
@@ -683,7 +700,6 @@ class SGMCMC(Optimizer):
             noise_level=noise_level,
             nbeta=nbeta,
             prior=prior,
-            prior_kwargs=prior_kwargs,
             preconditioner="rmsprop",
             preconditioner_kwargs=preconditioner_kwargs,
             bounding_box_size=bounding_box_size,

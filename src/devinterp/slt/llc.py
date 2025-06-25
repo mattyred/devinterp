@@ -45,9 +45,9 @@ class LLCEstimator(SamplerCallback):
         )
         self.init_loss = init_loss
 
-        assert (
-            nbeta is not None or temperature is not None
-        ), "Please provide a value for nbeta."
+        assert nbeta is not None or temperature is not None, (
+            "Please provide a value for nbeta."
+        )
         if nbeta is None and temperature is not None:
             nbeta = temperature
             warnings.warn("Temperature is deprecated. Please use nbeta instead.")
@@ -66,8 +66,15 @@ class LLCEstimator(SamplerCallback):
         if os.environ.get("USE_SPMD", "0") == "1" and not str(self.device).startswith(
             "cpu:"
         ):
-            # no need to reduce if we're using SPMD
-            pass
+            if str(self.device).startswith("cuda") and torch.cuda.device_count() > 1:
+                if torch.distributed.is_initialized():
+                    torch.distributed.barrier()
+                    torch.distributed.all_reduce(
+                        self.losses, op=torch.distributed.ReduceOp.AVG
+                    )
+            else:
+                pass
+
         elif USE_TPU_BACKEND and str(self.device).startswith("xla:"):
             import torch_xla.core.xla_model as xm
 
@@ -87,7 +94,9 @@ class LLCEstimator(SamplerCallback):
 
             else:
                 raise NotImplementedError(f"TPU type {TPU_TYPE} not supported")
-        elif str(self.device).startswith(
+        elif str(
+            self.device
+        ).startswith(
             "cuda"
         ):  # if we've ran on multi-GPU, we should do a reduce as well. see above for how this would work
             try:
@@ -103,6 +112,14 @@ class LLCEstimator(SamplerCallback):
                 avg_losses.to(device="cpu", dtype=torch.float32)
                 - self.init_loss.to(device="cpu", dtype=torch.float32)
             )
+        elif (
+            str(self.device).startswith("cuda")
+            and os.environ.get("USE_SPMD", "0") == "1"
+        ):
+            self.llc_per_chain = self.nbeta.to(device="cpu", dtype=torch.float32) * (
+                avg_losses.to(device="cpu", dtype=torch.float32)
+                - self.init_loss.to(device="cpu", dtype=torch.float32)
+            )
         else:
             self.llc_per_chain = self.nbeta * (avg_losses - self.init_loss)
         self.llc_mean = self.llc_per_chain.mean()
@@ -112,7 +129,15 @@ class LLCEstimator(SamplerCallback):
         """
         :returns: A dict :python:`{"llc/mean": llc_mean, "llc/std": llc_std, "llc-chain/{i}": llc_trace_per_chain, "loss/trace": loss_trace_per_chain}`. (Only after running :python:`devinterp.slt.sampler.sample(..., [llc_estimator_instance], ...)`).
         """
+
+        init_loss = (
+            self.init_loss.item()
+            if isinstance(self.init_loss, torch.Tensor)
+            else self.init_loss
+        )
+
         return {
+            "init_loss": init_loss,
             "llc/mean": self.llc_mean.cpu().numpy().item(),
             "llc/std": self.llc_std.cpu().numpy().item(),
             **{
@@ -164,9 +189,9 @@ class OnlineLLCEstimator(SamplerCallback):
 
         self.losses = torch.zeros((num_chains, num_draws)).to(device)
         self.llcs = torch.zeros((num_chains, num_draws)).to(device)
-        assert (
-            nbeta is not None or temperature is not None
-        ), "Please provide a value for nbeta."
+        assert nbeta is not None or temperature is not None, (
+            "Please provide a value for nbeta."
+        )
         if nbeta is None and temperature is not None:
             nbeta = temperature
             warnings.warn("Temperature is deprecated. Please use nbeta instead.")

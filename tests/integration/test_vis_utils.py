@@ -9,7 +9,7 @@ def test_plot_without_plotly():
     with mock.patch.dict(
         sys.modules, {"plotly.express": None, "plotly.graph_objects": None}
     ):
-        with mock.patch("devinterp.vis_utils.warnings") as mock_warn:
+        with mock.patch("devinterp.vis_utils.warnings"):
             from devinterp.vis_utils import EpsilonBetaAnalyzer
 
             analyzer = EpsilonBetaAnalyzer()

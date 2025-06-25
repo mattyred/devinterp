@@ -4,21 +4,20 @@ from pprint import pp
 import numpy as np
 import torch
 from datasets import load_dataset
+from devinterp.optim.sgld import SGLD
+from devinterp.slt.llc import LLCEstimator
+from devinterp.utils import USE_TPU_BACKEND, prepare_input, set_seed
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformer_lens.utils import lm_cross_entropy_loss, tokenize_and_concatenate
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from devinterp.optim.sgld import SGLD
-from devinterp.slt.llc import LLCEstimator
-from devinterp.utils import USE_TPU_BACKEND, prepare_input, set_seed
-
 
 def _test_hf(model, dataset, device: str, batch_size=8, seed=42, cores=1):
     assert not USE_TPU_BACKEND, "TPU backend not supported for this test"
-    assert device in ["cpu"] or device.startswith(
-        "cuda"
-    ), "Invalid device. Should be cpu or cuda:n. Don't worry about this error if you're not on a GPU device."
+    assert device in ["cpu"] or device.startswith("cuda"), (
+        "Invalid device. Should be cpu or cuda:n. Don't worry about this error if you're not on a GPU device."
+    )
     set_seed(seed)
 
     from devinterp.backends.default.slt.sampler import sample
@@ -71,7 +70,7 @@ def _test_hf(model, dataset, device: str, batch_size=8, seed=42, cores=1):
         callbacks=[llc_estimator],
         evaluate=evaluate,
         sampling_method=SGLD,
-        optimizer_kwargs=dict(
+        sampling_method_kwargs=dict(
             lr=0.0002,
             noise_level=10.0,
             weight_decay=0.0,
@@ -118,12 +117,12 @@ def inactive_test_hf():
     pp(metrics_mp)
     for k, v in metrics_cpu.items():
         if isinstance(v, torch.Tensor):
-            assert torch.allclose(
-                v, metrics_mp[k], rtol=1e-2
-            ), f"Evaluation failed for {k}"
+            assert torch.allclose(v, metrics_mp[k], rtol=1e-2), (
+                f"Evaluation failed for {k}"
+            )
         elif isinstance(v, np.ndarray):
-            assert np.isclose(
-                v, metrics_mp[k], rtol=1e-2
-            ).all(), f"Evaluation failed for {k}"
+            assert np.isclose(v, metrics_mp[k], rtol=1e-2).all(), (
+                f"Evaluation failed for {k}"
+            )
         else:
             assert np.isclose(v, metrics_mp[k], rtol=1e-2), f"Evaluation failed for {k}"

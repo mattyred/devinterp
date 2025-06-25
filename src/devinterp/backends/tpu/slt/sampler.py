@@ -1,3 +1,4 @@
+import os
 import warnings
 from copy import deepcopy
 from itertools import cycle
@@ -35,11 +36,11 @@ def sample_single_chain(
     ref_model: nn.Module,
     loader: torch.utils.data.DataLoader,
     evaluate: Callable[[nn.Module, torch.Tensor], Tuple[torch.Tensor, Dict[str, Any]]],
-    optimizer_kwargs: Dict,
+    sampling_method_kwargs: Dict,
     num_draws=100,
     num_burnin_steps=0,
     num_steps_bw_draws=1,
-    grad_accum_steps: int = 1,
+    gradient_accumulation_steps: int = 1,
     sampling_method: Type[torch.optim.Optimizer] = SGLD,
     scheduler_cls: Optional[Type[torch.optim.lr_scheduler._LRScheduler]] = None,
     scheduler_kwargs: Optional[Dict] = None,
@@ -51,20 +52,22 @@ def sample_single_chain(
     optimize_over_per_model_param: Optional[Dict[str, torch.Tensor]] = None,
     init_noise: Optional[float] = None,
     use_alternate_batching=False,  # See George's alternate SGLD sampling method
-    use_amp: bool = False,
+    dtype: Optional[torch.dtype] = (
+        torch.bfloat16
+        if os.environ.get("BF16")
+        else torch.float16
+        if os.environ.get("FP16")
+        else torch.float32
+    ),
     **kwargs,
 ):
     """
     Base function to sample a single chain. This function is called by the `sample` function on both single and multi-core setups.
     """
-    if use_amp:
-        warnings.warn(
-            "AMP slows down sampling on TPUs as of torch_xla 2.3.0. Disabling AMP."
-        )
-        use_amp = False
 
     # == Model ==
     model = deepcopy(ref_model).to(device)
+    ref_model.to("cpu")
 
     if seed is not None:
         set_seed(seed, device=device)
@@ -72,31 +75,35 @@ def sample_single_chain(
     # == Optimizer ==
 
     # Temperature consistency warning
-    if optimizer_kwargs is not None and (
-        "nbeta" in optimizer_kwargs or "temperature" in optimizer_kwargs
+    if sampling_method_kwargs is not None and (
+        "nbeta" in sampling_method_kwargs or "temperature" in sampling_method_kwargs
     ):
-        if "nbeta" in optimizer_kwargs:
+        if "nbeta" in sampling_method_kwargs:
             assert not any(
                 getattr(callback, "temperature", None) is not None
                 for callback in callbacks
-            ), "If you're setting nbeta in optimizer_kwargs, don't set temperature in the callbacks."
-        if "temperature" in optimizer_kwargs:
+            ), (
+                "If you're setting nbeta in sampling_method_kwargs, don't set temperature in the callbacks."
+            )
+        if "temperature" in sampling_method_kwargs:
             assert not any(
                 (
                     getattr(callback, "nbeta", None) is not None
                     and getattr(callback, "temperature") is None
                 )
                 for callback in callbacks
-            ), "If you're setting temperature in optimizer_kwargs, don't set nbeta in the callbacks."
+            ), (
+                "If you're setting temperature in sampling_method_kwargs, don't set nbeta in the callbacks."
+            )
         warnings.warn(
-            "If you're setting a nbeta or temperature in optimizer_kwargs, please also make sure to set it in the callbacks."
+            "If you're setting a nbeta or temperature in sampling_method_kwargs, please also make sure to set it in the callbacks."
         )
 
-    optimizer_metrics = optimizer_kwargs.get("metrics", [])
+    optimizer_metrics = sampling_method_kwargs.get("metrics", [])
     if any(isinstance(callback, MalaAcceptanceRate) for callback in callbacks):
         optimizer_metrics.extend(["dws", "localization_loss"])
 
-    optimizer_kwargs["metrics"] = optimizer_metrics
+    sampling_method_kwargs["metrics"] = optimizer_metrics
 
     param_groups = []
 
@@ -114,7 +121,7 @@ def sample_single_chain(
 
     optimizer = sampling_method(
         param_groups,
-        **optimizer_kwargs,
+        **sampling_method_kwargs,
     )
 
     # == (Optional) Init Noise ==
@@ -142,16 +149,16 @@ def sample_single_chain(
         # We take one very large batch and sample SGLD on the fixed batch.
         cycler = cycle(loader)
         feed = []
-        for step in range(grad_accum_steps):
+        for step in range(gradient_accumulation_steps):
             data = next(cycler)
             feed.append(data)
-        feed = zip(range(num_steps * grad_accum_steps), cycle(feed))
+        feed = zip(range(num_steps * gradient_accumulation_steps), cycle(feed))
     else:
-        feed = zip(range(num_steps * grad_accum_steps), cycle(loader))
+        feed = zip(range(num_steps * gradient_accumulation_steps), cycle(loader))
     loader = cycle(loader)
 
     model.train()
-    no_grad = not any(map(lambda pg: pg["nbeta"] > 0, optimizer.param_groups))
+    no_grad = not any(map(lambda pg: pg["nbeta"] >= 0, optimizer.param_groups))
 
     mark_step_if_xla(device)
 
@@ -166,37 +173,39 @@ def sample_single_chain(
             # optimizer.zero_grad()
             loss, results = None, {}
 
-            # Note: The effective batch size is grad_accum_steps * batch_size
-            # To implement George's alternate SGLD sampling method, we set grad_accum_steps to, say, 100
+            # Note: The effective batch size is gradient_accumulation_steps * batch_size
+            # To implement George's alternate SGLD sampling method, we set gradient_accumulation_steps to, say, 100
             # and batch_size to 32 to sample from 1 effective batch of size 3.2k
 
-            for j in range(grad_accum_steps):
+            for j in range(gradient_accumulation_steps):
                 data = next(loader)
                 with autocast(
-                    device=xm.xla_device(), enabled=use_amp, dtype=torch.float16
+                    device=xm.xla_device(),
+                    dtype=dtype,
+                    enabled=dtype != torch.float32,
                 ):
                     _loss, _results = evaluate(model, prepare_input(data, device))
-                    _mean_loss = _loss.mean() / grad_accum_steps
+                    _mean_loss = _loss.mean() / gradient_accumulation_steps
 
                 if not no_grad:
                     _mean_loss.backward()
 
                 if j == 0:
                     # First gradient accumulation iteration: create the loss object
-                    loss = _loss.detach() / grad_accum_steps
+                    loss = _loss.detach() / gradient_accumulation_steps
                     for k, v in _results.items():
                         if torch.is_tensor(v):
-                            results[k] = v.detach() / grad_accum_steps
+                            results[k] = v.detach() / gradient_accumulation_steps
 
                 else:
                     # Later gradient accumulation iterations: accumulate the loss
-                    loss += _loss.detach() / grad_accum_steps
+                    loss += _loss.detach() / gradient_accumulation_steps
 
                     for k, v in _results.items():
                         if torch.is_tensor(v):
-                            results[k] += v.detach() / grad_accum_steps
+                            results[k] += v.detach() / gradient_accumulation_steps
 
-                pbar.set_postfix({"grad_accum_steps": j})
+                pbar.set_postfix({"gradient_accumulation_steps": j})
 
                 mark_step_if_xla(device)
 
@@ -277,7 +286,9 @@ def sample(
     callbacks: Union[List[SamplerCallback], Dict[str, SamplerCallback]],
     evaluate: Callable = lambda model, data: model(data),
     sampling_method: Type[torch.optim.Optimizer] = SGLD,
-    optimizer_kwargs: Optional[Dict[str, Union[float, Literal["adaptive"]]]] = None,
+    sampling_method_kwargs: Optional[
+        Dict[str, Union[float, Literal["adaptive"]]]
+    ] = None,
     scheduler_cls: Optional[Type[torch.optim.lr_scheduler._LRScheduler]] = None,
     scheduler_kwargs: Optional[Dict[str, Any]] = None,
     num_draws: int = 100,
@@ -285,7 +296,7 @@ def sample(
     num_burnin_steps: int = 0,
     num_steps_bw_draws: int = 1,
     init_loss=None,
-    grad_accum_steps: int = 1,
+    gradient_accumulation_steps: int = 1,
     cores: int = 1,
     seed: Optional[Union[int, List[int]]] = None,
     device: Union[torch.device, str] = torch.device("cpu"),
@@ -295,7 +306,13 @@ def sample(
     init_noise: Optional[float] = None,
     shuffle: bool = True,
     use_alternate_batching=False,  # See George's alternate SGLD sampling method
-    use_amp: bool = False,
+    dtype: Optional[torch.dtype] = (
+        torch.bfloat16
+        if os.environ.get("BF16")
+        else torch.float16
+        if os.environ.get("FP16")
+        else torch.float32
+    ),
     **kwargs,  # NOTE: This is an important catch-all for any additional arguments that may be passed to the function. Please don't remove it.
 ):
     """
@@ -316,8 +333,8 @@ def sample(
     :type callbacks: list[SamplerCallback]
     :param sampling_method: Sampling method to use (a PyTorch optimizer under the hood). Default is SGLD
     :type sampling_method: torch.optim.Optimizer, optional
-    :param optimizer_kwargs: Keyword arguments for the PyTorch optimizer (used as sampler here). Default is None (using standard SGLD parameters as defined in the SGLD class)
-    :type optimizer_kwargs: dict, optional
+    :param sampling_method_kwargs: Keyword arguments for the PyTorch optimizer (used as sampler here). Default is None (using standard SGLD parameters as defined in the SGLD class)
+    :type sampling_method_kwargs: dict, optional
     :param num_draws: Number of samples to draw. Default is 100
     :type num_draws: int, optional
     :param num_chains: Number of chains to run. Default is 10
@@ -387,7 +404,7 @@ def sample(
         num_burnin_steps=num_burnin_steps,
         num_steps_bw_draws=num_steps_bw_draws,
         sampling_method=sampling_method,
-        optimizer_kwargs=optimizer_kwargs,
+        sampling_method_kwargs=sampling_method_kwargs,
         scheduler_cls=scheduler_cls,
         scheduler_kwargs=scheduler_kwargs,
         verbose=verbose,
@@ -397,12 +414,12 @@ def sample(
         num_chains=num_chains,
         seeds=seeds,
         batch_size=batch_size,
-        grad_accum_steps=grad_accum_steps,
+        gradient_accumulation_steps=gradient_accumulation_steps,
         optimize_over_per_model_param=optimize_over_per_model_param,
         init_noise=init_noise,
         shuffle=shuffle,
         use_alternate_batching=use_alternate_batching,
-        use_amp=use_amp,
+        dtype=dtype,
     )
 
     def get_args(i):

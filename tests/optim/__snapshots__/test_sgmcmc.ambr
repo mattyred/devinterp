@@ -2816,7 +2816,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.098',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -3365,7 +3365,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.31',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -3914,7 +3914,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.72',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -4463,7 +4463,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.89',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -5012,7 +5012,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.098',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -5561,7 +5561,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.31',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -6110,7 +6110,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.72',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -6659,7 +6659,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.9',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -11600,7 +11600,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.098',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -12149,7 +12149,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.31',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -12698,7 +12698,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.98',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -13247,7 +13247,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '3.1',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -13796,7 +13796,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.098',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -14345,7 +14345,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.31',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -14894,7 +14894,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.98',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -15443,7 +15443,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '3.1',
+      'distance': '0.0',
       'dws': list([
         list([
           list([
@@ -20384,7 +20384,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.098',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -20933,7 +20933,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.31',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -21482,7 +21482,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.72',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -22031,7 +22031,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.89',
+      'distance': '2.6',
       'dws': list([
         list([
           list([
@@ -22580,7 +22580,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.098',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -23129,7 +23129,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.31',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -23678,7 +23678,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.72',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -24227,7 +24227,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.9',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -29168,7 +29168,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.098',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -29717,7 +29717,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.31',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -30266,7 +30266,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.98',
+      'distance': '2.6',
       'dws': list([
         list([
           list([
@@ -30815,7 +30815,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '3.1',
+      'distance': '3.9',
       'dws': list([
         list([
           list([
@@ -31364,7 +31364,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.098',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -31913,7 +31913,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.31',
+      'distance': '2.5',
       'dws': list([
         list([
           list([
@@ -32462,7 +32462,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '0.98',
+      'distance': '2.6',
       'dws': list([
         list([
           list([
@@ -33011,7 +33011,7 @@
     'optimizer_sgld': dict({
     }),
     'optimizer_sgmcmc': dict({
-      'distance': '3.1',
+      'distance': '3.8',
       'dws': list([
         list([
           list([

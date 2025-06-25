@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from numbers import Real
-from typing import Any, Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Iterator, List, Literal, Optional, Union
 
 import numpy as np
 import torch
-from torch.optim import Optimizer
 
 
 class Prior(ABC):
@@ -53,6 +52,7 @@ class GaussianPrior(Prior):
             Union[Literal["initial"], Iterable[torch.Tensor], Real]
         ] = "initial",
         key: str = "prior_center",
+        **kwargs,  # Accept additional kwargs for consistency
     ):
         """
         Args:
@@ -62,9 +62,12 @@ class GaussianPrior(Prior):
                 - 'initial': centered at initial parameter values (localization)
                 - iterable of tensors: centered at provided parameter values
                   (must match model parameter shapes)
+            key: Key to use in state dictionary
+            **kwargs: Additional keyword arguments (ignored by GaussianPrior)
         """
         self.localization = localization
         self.key = key
+
         if isinstance(center, (str, type(None))):
             self.center = center
         elif isinstance(center, Real):
@@ -128,7 +131,7 @@ class GaussianPrior(Prior):
         Returns:
             Gradient tensor
         """
-        center = state[self.key]
+        center = state.get(self.key)
 
         if center is None:
             return self.localization * param
@@ -144,18 +147,17 @@ class GaussianPrior(Prior):
         """Compute squared distance from prior center. If state is provided, the
         prior center is looked up in the state dictionary using the instance key.
 
-
         Args:
             param: Parameter tensor
             state: State dictionary
             scale: Scale factor
         """
-        center = state[self.key]
+        center = state.get(self.key)
 
-        if center is not None:
-            return ((scale * (param - center)) ** 2).sum()
-        else:
+        if center is None:
             return ((scale * param) ** 2).sum()
+        else:
+            return ((scale * (param - center)) ** 2).sum()
 
     def __repr__(self) -> str:
         return f"GaussianPrior(localization={self.localization}, center={self.center})"
@@ -164,7 +166,12 @@ class GaussianPrior(Prior):
 class UniformPrior(Prior):
     """Uniform prior."""
 
-    def __init__(self, box_size: float = np.inf):
+    def __init__(self, box_size: float = np.inf, **kwargs):
+        """
+        Args:
+            box_size: Size of the box constraint
+            **kwargs: Additional keyword arguments (ignored by UniformPrior)
+        """
         self.box_size = box_size
 
         if box_size != np.inf:
@@ -180,17 +187,30 @@ class UniformPrior(Prior):
     def grad(self, param: torch.Tensor, state: Dict[str, Any]) -> torch.Tensor:
         return torch.zeros_like(param)
 
+    def distance_sq(
+        self,
+        param: torch.Tensor,
+        state: Dict[str, Any] = {},
+        scale: Optional[Union[float, torch.Tensor]] = 1.0,
+    ) -> torch.Tensor:
+        return 0.0
+
 
 class CompositePrior(Prior):
     """Combines multiple priors, summing their contributions.
     The last prior in the list takes precedence for distance_sq and as a default for getattr.
     """
 
-    def __new__(cls, priors: List[Prior]):
+    def __new__(cls, priors: List[Prior], **kwargs):
+        """
+        Args:
+            priors: List of prior instances
+            **kwargs: Additional keyword arguments (passed to child priors)
+        """
         non_uniform_priors = [p for p in priors if not isinstance(p, UniformPrior)]
 
         if not non_uniform_priors:
-            return UniformPrior()
+            return UniformPrior(**kwargs)
 
         if len(non_uniform_priors) == 1:
             instance = non_uniform_priors[0]
@@ -200,7 +220,16 @@ class CompositePrior(Prior):
 
         return instance
 
-    def __init__(self, priors: List[Prior]):
+    def __init__(self, priors: List[Prior], **kwargs):
+        """
+        Args:
+            priors: List of prior instances
+            **kwargs: Additional keyword arguments (passed to child priors)
+        """
+        # Skip initialization if this is actually a uniform or single prior
+        if not hasattr(self, "priors"):
+            return
+
         self.priors = priors
 
         for i, prior in enumerate(priors):

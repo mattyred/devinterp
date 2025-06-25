@@ -6,28 +6,14 @@ import torch
 from devinterp.optim.sgld import SGLD
 from devinterp.slt.llc import LLCEstimator, OnlineLLCEstimator
 from devinterp.slt.sampler import sample
-from devinterp.test_utils import *
 from devinterp.utils import default_nbeta, evaluate_mse, get_init_loss_multi_batch
 from torch.utils.data import DataLoader, TensorDataset
-
-
-@pytest.fixture
-def generated_normalcrossing_dataset():
-    torch.manual_seed(42)
-    np.random.seed(42)
-    sigma = 0.25
-    num_samples = 1000
-    x = torch.normal(0, 2, size=(num_samples,))
-    y = sigma * torch.normal(0, 1, size=(num_samples,))
-    train_data = TensorDataset(x, y)
-    train_dataloader = DataLoader(train_data, batch_size=num_samples, shuffle=True)
-    return train_dataloader, train_data, x, y
 
 
 @pytest.mark.parametrize("sampling_method", [SGLD])
 @pytest.mark.parametrize("estimator", [LLCEstimator, OnlineLLCEstimator])
 def test_pass_in_temperature(
-    generated_normalcrossing_dataset, sampling_method, estimator
+    generated_normalcrossing_dataset, sampling_method, estimator, Polynomial
 ):
     seed = 0
     torch.manual_seed(seed)
@@ -54,7 +40,7 @@ def test_pass_in_temperature(
         model,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(lr=lr, temperature=temperature),
+        sampling_method_kwargs=dict(lr=lr, temperature=temperature),
         sampling_method=sampling_method,
         num_chains=num_chains,
         num_draws=num_draws,
@@ -67,7 +53,7 @@ def test_pass_in_temperature(
         model,
         train_dataloader,
         evaluate=evaluate_mse,
-        optimizer_kwargs=dict(lr=lr, nbeta=nbeta),
+        sampling_method_kwargs=dict(lr=lr, nbeta=nbeta),
         sampling_method=sampling_method,
         num_chains=num_chains,
         num_draws=num_draws,
@@ -79,13 +65,13 @@ def test_pass_in_temperature(
     temp_llc_estimator = temp_llc_estimator.get_results()
     for k, v in nbeta_llc_estimator.items():
         if isinstance(v, torch.Tensor):
-            assert torch.allequal(
-                v, temp_llc_estimator[k]
-            ), f"Evaluation failed for {k}"
+            assert torch.allequal(v, temp_llc_estimator[k]), (
+                f"Evaluation failed for {k}"
+            )
         elif isinstance(v, np.ndarray):
-            assert np.equal(
-                v, temp_llc_estimator[k]
-            ).all(), f"Evaluation failed for {k}"
+            assert np.equal(v, temp_llc_estimator[k]).all(), (
+                f"Evaluation failed for {k}"
+            )
         else:
             assert np.equal(v, temp_llc_estimator[k]), f"Evaluation failed for {k}"
 
@@ -93,7 +79,7 @@ def test_pass_in_temperature(
 @pytest.mark.parametrize("sampling_method", [SGLD])
 @pytest.mark.parametrize("estimator", [LLCEstimator, OnlineLLCEstimator])
 def test_dont_allow_both_temp_and_nbeta(
-    generated_normalcrossing_dataset, sampling_method, estimator
+    generated_normalcrossing_dataset, sampling_method, estimator, Polynomial
 ):
     model = Polynomial([2, 2])
     with pytest.raises(AssertionError):
@@ -114,7 +100,7 @@ def test_dont_allow_both_temp_and_nbeta(
             model,
             train_dataloader,
             evaluate=evaluate_mse,
-            optimizer_kwargs=dict(
+            sampling_method_kwargs=dict(
                 lr=lr,
                 temperature=2.0,
             ),
@@ -125,7 +111,6 @@ def test_dont_allow_both_temp_and_nbeta(
             verbose=False,
         )
     with pytest.raises(AssertionError):
-
         llc_estimator = estimator(
             num_chains=num_chains,
             num_draws=num_draws,
@@ -136,7 +121,7 @@ def test_dont_allow_both_temp_and_nbeta(
             model,
             train_dataloader,
             evaluate=evaluate_mse,
-            optimizer_kwargs=dict(
+            sampling_method_kwargs=dict(
                 lr=lr,
                 nbeta=2.0,
             ),
@@ -150,20 +135,18 @@ def test_dont_allow_both_temp_and_nbeta(
 
 def test_warn_on_default_nbeta():
     with mock.patch("devinterp.utils.warnings") as mock_warn:
-
-        nbeta = default_nbeta(
+        _ = default_nbeta(
             DataLoader(TensorDataset(torch.randn(100, 10)), batch_size=1),
-            grad_accum_steps=1,
+            gradient_accumulation_steps=1,
         )
         # Check that a warning was issued
         mock_warn.warn.assert_called_with(
-            "default nbeta is undefined for batch_size * grad_accum_steps == 1, falling back to default value of 1"
+            "default nbeta is undefined for batch_size * gradient_accumulation_steps == 1, falling back to default value of 1"
         )
     with mock.patch("devinterp.utils.warnings") as mock_warn:
-
-        nbeta = default_nbeta(1, grad_accum_steps=1)
+        _ = default_nbeta(1, gradient_accumulation_steps=1)
 
         # Check that a warning was issued
         mock_warn.warn.assert_called_with(
-            "default nbeta is undefined for batch_size * grad_accum_steps == 1, falling back to default value of 1"
+            "default nbeta is undefined for batch_size * gradient_accumulation_steps == 1, falling back to default value of 1"
         )

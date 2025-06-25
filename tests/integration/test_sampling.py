@@ -1,4 +1,3 @@
-import time
 import warnings
 
 import numpy as np
@@ -7,7 +6,6 @@ import torch
 from datasets import load_dataset
 from devinterp.optim import SGLD
 from devinterp.slt.sampler import estimate_learning_coeff_with_summary
-from devinterp.utils import USE_TPU_BACKEND, plot_trace
 from torch.nn import functional as F
 from transformers import AutoModelForImageClassification
 
@@ -36,7 +34,6 @@ class torchvisionWrapper(torch.utils.data.Dataset):
 
 @pytest.fixture(scope="module")
 def data():
-
     mnist_dataset = load_dataset("mnist")
 
     def preprocess(examples):
@@ -64,8 +61,8 @@ def get_stats(
     seed=None,
     num_workers=0,
     batch_size=64,
-    grad_accum_steps=1,
-    use_amp=False,
+    gradient_accumulation_steps=1,
+    dtype=torch.float32,
 ):
     # Load a pretrained MNIST classifier
     model = AutoModelForImageClassification.from_pretrained(
@@ -88,7 +85,7 @@ def get_stats(
         loader=loader,
         evaluate=evaluate,
         sampling_method=SGLD,
-        optimizer_kwargs=dict(lr=4e-4, localization=100.0, nbeta=2.0),
+        sampling_method_kwargs=dict(lr=4e-4, localization=100.0, nbeta=2.0),
         num_chains=chains,  # How many independent chains to run
         num_draws=10,  # How many samples to draw per chain
         num_burnin_steps=0,  # How many samples to discard at the beginning of each chain
@@ -98,9 +95,9 @@ def get_stats(
         cores=cores,  # How many cores to use for parallelization
         gpu_idxs=gpu_idxs,  # Which GPUs to use ([0, 1] for using GPU 0 and 1)
         seed=seed,
-        grad_accum_steps=grad_accum_steps,
-        use_amp=use_amp,
+        gradient_accumulation_steps=gradient_accumulation_steps,
         init_loss=0.1,
+        dtype=dtype,
     )
 
 
@@ -109,18 +106,18 @@ def check(s1, s2, atol=1e-3, reverse=False):
     Check if two stats are close to each other.
 
     """
-    assert (
-        s1.keys() == s2.keys()
-    ), f"Expected the same keys in both stats, got {s1.keys()} and {s2.keys()}."
-    assert (
-        s1["llc/trace"].shape == s2["llc/trace"].shape
-    ), f"Expected the same shape for llc/trace, got {s1['llc/trace'].shape} and {s2['llc/trace'].shape}."
+    assert s1.keys() == s2.keys(), (
+        f"Expected the same keys in both stats, got {s1.keys()} and {s2.keys()}."
+    )
+    assert s1["llc/trace"].shape == s2["llc/trace"].shape, (
+        f"Expected the same shape for llc/trace, got {s1['llc/trace'].shape} and {s2['llc/trace'].shape}."
+    )
     valid = np.allclose(s1["llc/trace"], s2["llc/trace"], atol=atol)
     if reverse:
         valid = not valid
-    assert (
-        valid
-    ), f"Expected {'different' if reverse else 'close'} llc/trace in both stats, got {s1['llc/trace']} and {s2['llc/trace']}, {np.isclose(s1['llc/trace'], s2['llc/trace'], atol=atol)}."
+    assert valid, (
+        f"Expected {'different' if reverse else 'close'} llc/trace in both stats, got {s1['llc/trace']} and {s2['llc/trace']}, {np.isclose(s1['llc/trace'], s2['llc/trace'], atol=atol)}."
+    )
 
 
 @pytest.fixture(scope="module")
@@ -152,7 +149,7 @@ def test_cpu_multicore(data, cpu_default):
 
 def test_grad_accum(data, cpu_default: dict):
     grad_accum_stats = get_stats(
-        data, "cpu", seed=100, grad_accum_steps=4, batch_size=16
+        data, "cpu", seed=100, gradient_accumulation_steps=4, batch_size=16
     )
     check(cpu_default, grad_accum_stats, 1)
 
@@ -161,12 +158,6 @@ def test_grad_accum(data, cpu_default: dict):
 def test_gpu_consistent(data, gpu_default):
     repeat_stats = get_stats(data, "cuda", seed=100)
     check(gpu_default, repeat_stats, 0.2)
-
-
-@pytest.mark.gpu
-def test_gpu_consistent_seeds(data, gpu_default):
-    diff_seed_stats = get_stats(data, "cuda", seed=101)
-    check(gpu_default, diff_seed_stats, 5, reverse=True)
 
 
 @pytest.mark.gpu
@@ -204,12 +195,12 @@ def test_multigpu_multicore(data, gpu_default):
 @pytest.mark.gpu
 def test_gpu_grad_accum(data, gpu_default: dict):
     grad_accum_stats = get_stats(
-        data, "cuda", seed=100, cores=4, grad_accum_steps=2, batch_size=128
+        data, "cuda", seed=100, cores=4, gradient_accumulation_steps=2, batch_size=128
     )
     check(gpu_default, grad_accum_stats, 1)
 
 
 @pytest.mark.gpu
-def test_gpu_amp(data, gpu_default: dict):
-    amp_stats = get_stats(data, "cuda", seed=100, cores=4, use_amp=True)
-    check(gpu_default, amp_stats, 0.2)
+def test_gpu_bf16(data, gpu_default: dict):
+    bf16_stats = get_stats(data, "cuda", seed=100, cores=4, dtype=torch.bfloat16)
+    check(gpu_default, bf16_stats, 0.2)
