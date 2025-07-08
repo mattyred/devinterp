@@ -37,7 +37,7 @@ def plot_trace(
     plot_mean=True,
     plot_std=True,
     fig_size=(12, 9),
-    true_lc=None,
+    true_lc=None
 ):
     import matplotlib.pyplot as plt
 
